@@ -15,63 +15,84 @@ Container :: struct {
     height    : f32,
     elements  : [dynamic]Container,
     rect      : Rect,
+    style     : Style,
+}
+
+Style :: struct {
+    round : f32,
+    gap       : int,
+    padding   : int,
     bg        : Color,
 }
 
-Rect  :: struct { x, y, w, h : f32}
+Rect  :: struct { x, y, w, h, r : f32 }
 Color :: distinct [4]u8
 
-new_container :: proc(id: string, direction: Direction, width: f32, height: f32, color: Color) -> Container {
-    return Container{ id, direction, width, height, {}, {}, color }
+new_container :: proc(id: string, direction: Direction, width: f32, height: f32, style := Style{}) -> Container {
+    c := Container{ id, direction, width, height, {}, {}, style }
+    verify_container(c)
+    return c
 }
 
 verify_container :: proc(container: Container) {
     if container.width < 0 || container.width > 1 {
-        fatal(fmt.aprintf("ERR: (Container %s): Width range should be 0..1, got %f", container.id, container.width))
+        fatal(fmt.aprintf("ERROR: LX: (Container '%s'): Width range should be 0..1, got %f", container.id, container.width))
     }
 
-    if container.height < 0 || container.width > 1 {
-        fatal(fmt.aprintf("ERR: (Container %s): Height range should be 0..1, got %f", container.id, container.width))
+    if container.height < 0 || container.height > 1 {
+        fatal(fmt.aprintf("ERROR: LX: (Container '%s'): Height range should be 0..1, got %f", container.id, container.height))
     }
 }
 
 add_elements :: proc(parent: ^Container, elements: ..Container) {
-    for el in elements {
-        verify_container(el)
-        append(&parent.elements, el)
-    }
+    for el in elements { append(&parent.elements, el) }
 }
 
 layout :: proc(container: ^Container, parent_rect: Rect) {
     container.rect = parent_rect
     cursor : struct{ x, y: f32 } = {
-        x = parent_rect.x,
-        y = parent_rect.y,
+        x = parent_rect.x + f32(container.style.padding),
+        y = parent_rect.y + f32(container.style.padding),
     }
 
-    for &cont in container.elements {
+    total_gap := f32(container.style.gap * (len(container.elements) - 1))
+
+    available_w := parent_rect.w - f32(container.style.padding * 2)
+    available_h := parent_rect.h - f32(container.style.padding * 2)
+
+    switch container.direction {
+    case .Row: available_w -= total_gap
+    case .Col: available_h -= total_gap
+    }
+
+
+    for &cont, index in container.elements {
         cont.rect = {
-            w = cont.width * parent_rect.w,
-            h = cont.height * parent_rect.h,
+            w = cont.width * available_w,
+            h = cont.height * available_h,
             x = cursor.x,
             y = cursor.y,
+            r = cont.style.round,
         }
 
         if len(cont.elements) != 0 {
             layout(&cont, cont.rect)
         }
 
+        gap : f32 = 0.0
+        if index != (len(container.elements) - 1) {
+            gap = f32(container.style.gap)
+        }
+
         switch container.direction {
-        case .Row:
-            cursor.x += cont.rect.w
-        case .Col:
-            cursor.y += cont.rect.h
+        case .Row: cursor.x += cont.rect.w + gap
+        case .Col: cursor.y += cont.rect.h + gap
         }
     }
 }
 
 render :: proc(layout: ^Container, draw_fn: proc(rect: Rect, color: Color)) {
-    draw_fn(layout.rect, layout.bg)
+    draw_fn(layout.rect, layout.style.bg)
 
     for &elem in layout.elements {
         render(&elem, draw_fn)
