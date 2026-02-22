@@ -22,6 +22,7 @@ usage :: proc() {
 
 Usage: %s
 
+   test:lx  Run tests
    timings  Show build timings (adds -show-timings to build args)
    release  Build odin with optimizations (-o:speed...)
    help     Prints this help message
@@ -48,6 +49,8 @@ main :: proc() {
 			release_mode = true
 		case "help":
 			usage()
+		case "test:lx":
+			run_lx_tests()
 		case:
 			fmt.printfln("Unknown arg <%s>", arg)
 			os.exit(3)
@@ -70,6 +73,16 @@ main :: proc() {
 	if build_err != "" { fmt.eprintln(build_err) }
 
 
+}
+
+
+run_lx_tests :: proc() {
+	test_args := [?]string{"odin", "test", "src/lx"}
+	test_state, test_out, test_err := run_command(Command{args = test_args[:]})
+	if !test_state.success { fatal(test_err) }
+	if test_out != "" { fmt.println(test_out) }
+	if test_err != "" { fmt.eprintln(test_err) }
+	os.exit(test_state.exit_code)
 }
 
 run_command :: proc(
