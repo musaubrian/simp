@@ -3,7 +3,6 @@ package lx
 
 import "core:fmt"
 import "core:os"
-import "core:strings"
 
 Direction :: enum { Row, Col }
 
@@ -121,20 +120,10 @@ walk_tree :: proc(node: ^Container, depth: int) {
 
 print_container :: proc(container: ^Container, depth: int = 0) {
     fmt.printfln(
-        "%sContainer(id=%s, direction=%v, width=%f, height=%f)",
-        str_padding(depth),
+        "%*s Container(id=%s, direction=%v, width=%f, height=%f)",
+        depth * 2, "",
         container.id,container.direction, container.width, container.height,
     )
-}
-
-str_padding :: proc(depth: int) -> string {
-    str : [dynamic]string
-    for i in 0..<depth {
-        _ = i
-        append(&str, "  ")
-    }
-
-    return strings.concatenate(str[:])
 }
 
 fatal :: proc(message: string) {
