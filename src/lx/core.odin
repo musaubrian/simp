@@ -44,7 +44,17 @@ verify_container :: proc(container: Container) {
 }
 
 add_elements :: proc(parent: ^Container, elements: ..Container) {
-    for el in elements { append(&parent.elements, el) }
+   total : f32 = 0
+    for el in parent.elements {
+        total += el.width if parent.direction == .Row else el.height
+    }
+    for el in elements {
+        total += el.width if parent.direction == .Row else el.height
+        if total > 1.0 {
+            fatal(fmt.aprintf("ERROR: LX: (Container '%s'): children exceed 1.0, got %f, '%s' pushed it over", parent.id, total, el.id))
+        }
+        append(&parent.elements, el)
+    }
 }
 
 layout :: proc(container: ^Container, parent_rect: Rect) {
