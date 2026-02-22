@@ -18,13 +18,13 @@ Container :: struct {
 }
 
 Style :: struct {
-    round : f32,
+    round     : f32,
     gap       : int,
     padding   : int,
     bg        : Color,
 }
 
-Rect  :: struct { x, y, w, h, r : f32 }
+Rect  :: struct { x, y, w, h: f32 }
 Color :: distinct [4]u8
 
 new_container :: proc(id: string, direction: Direction, width: f32, height: f32, style := Style{}) -> Container {
@@ -71,7 +71,6 @@ layout :: proc(container: ^Container, parent_rect: Rect) {
             h = cont.height * available_h,
             x = cursor.x,
             y = cursor.y,
-            r = cont.style.round,
         }
 
         if len(cont.elements) != 0 {
@@ -90,8 +89,8 @@ layout :: proc(container: ^Container, parent_rect: Rect) {
     }
 }
 
-render :: proc(layout: ^Container, draw_fn: proc(rect: Rect, color: Color)) {
-    draw_fn(layout.rect, layout.style.bg)
+render :: proc(layout: ^Container, draw_fn: proc(container: ^Container)) {
+    draw_fn(layout)
 
     for &elem in layout.elements {
         render(&elem, draw_fn)
