@@ -55,7 +55,7 @@ main :: proc() {
 	}
 
 
-	build_args := [dynamic]string{"odin", "build", "src"}
+	build_args := [dynamic]string{"odin", "build", "src", "-out:simp"}
 	for default_arg in DEFAULT_BUILD_ARGS {append(&build_args, default_arg)}
 	if show_timings {append(&build_args, "-show-timings")}
 
