@@ -6,6 +6,7 @@ import "core:os"
 import "core:strings"
 
 Direction :: enum  { Row, Col }
+Alignment :: enum  { Start, Center, End }
 Node      :: union { Container, Text }
 
 Container :: struct {
@@ -24,7 +25,10 @@ Text :: struct {
     size     : f32,
     color    : Color,
     pos      : Vec2,
+    bounds   : Vec2,
 }
+
+MeasureTextFn :: proc(t: ^Text) -> Vec2
 
 Style :: struct {
     round     : f32,
@@ -32,6 +36,8 @@ Style :: struct {
     padding   : int,
     bg        : Color,
     hover_bg  : Color,
+    justify   : Alignment,
+    align     : Alignment,
 }
 
 Vec2  :: distinct [2]f32
@@ -44,13 +50,13 @@ _current_id : int = 0
 container :: proc(label: string, width: f32, height: f32, direction: Direction = .Row, style := Style{}) -> Container {
     _current_id += 1
     c := Container{
-        id = fmt.aprintf("%s#%d", label, _current_id),
+        id        = fmt.aprintf("%s#%d", label, _current_id),
         direction = direction,
-        width = width,
-        height = height,
-        rect = {},
-        elements = {},
-        style = style,
+        width     = width,
+        height    = height,
+        rect      = {},
+        elements  = {},
+        style     = style,
     }
     verify_container(c)
     return c
@@ -59,10 +65,10 @@ container :: proc(label: string, width: f32, height: f32, direction: Direction =
 text :: proc(size: f32, content: string, color: Color) -> Text {
     _current_id += 1
     return Text{
-        id = fmt.aprintf("##%d", _current_id),
+        id      = fmt.aprintf("##%d", _current_id),
         content = content,
-        size = size,
-        color = color,
+        size    = size,
+        color   = color,
     }
 }
 
@@ -98,7 +104,7 @@ add_elements :: proc(parent: ^Container, elements: ..Node) {
     }
 }
 
-layout :: proc(container: ^Container, parent_rect: Rect) {
+layout :: proc(container: ^Container, parent_rect: Rect, measure: MeasureTextFn = nil) {
     container.rect = parent_rect
 
     // calculate the appropriate rounded ratio
@@ -107,32 +113,94 @@ layout :: proc(container: ^Container, parent_rect: Rect) {
         container.style.round = container.style.round / smaller if smaller > 0 else 0
     }
 
-    cursor : struct{ x, y: f32 } = {
-        x = parent_rect.x + f32(container.style.padding),
-        y = parent_rect.y + f32(container.style.padding),
-    }
+    pad := f32(container.style.padding)
+    content_x   := parent_rect.x + pad
+    content_y   := parent_rect.y + pad
+    available_w := parent_rect.w - pad * 2
+    available_h := parent_rect.h - pad * 2
 
     total_gap := f32(container.style.gap * (len(container.elements) - 1))
-
-    available_w := parent_rect.w - f32(container.style.padding * 2)
-    available_h := parent_rect.h - f32(container.style.padding * 2)
 
     switch container.direction {
     case .Row: available_w -= total_gap
     case .Col: available_h -= total_gap
     }
 
+    // first pass: compute sizes and total used on main axis
+    used_main : f32 = 0
+    for &node in container.elements {
+        switch &cont in node {
+        case Container:
+            cont.rect.w = cont.width * available_w
+            cont.rect.h = cont.height * available_h
+            switch container.direction {
+            case .Row: used_main += cont.rect.w
+            case .Col: used_main += cont.rect.h
+            }
+        case Text:
+            if measure != nil {
+                cont.bounds = measure(&cont)
+            } else {
+                cont.bounds = { cont.size, cont.size }
+            }
+            switch container.direction {
+            case .Row: used_main += cont.bounds[0]
+            case .Col: used_main += cont.bounds[1]
+            }
+        }
+    }
+
+    // justify: offset on main axis
+    main_space : f32 = 0
+    switch container.direction {
+    case .Row: main_space = available_w - used_main
+    case .Col: main_space = available_h - used_main
+    }
+    if main_space < 0 { main_space = 0 }
+
+    main_offset : f32 = 0
+    switch container.style.justify {
+    case .Start:  main_offset = 0
+    case .Center: main_offset = main_space / 2
+    case .End:    main_offset = main_space
+    }
+
+    cursor : struct{ x, y: f32 }
+    switch container.direction {
+    case .Row: cursor = { content_x + main_offset, content_y }
+    case .Col: cursor = { content_x, content_y + main_offset }
+    }
+
+    // second pass: position children with alignment
     for &node, index in container.elements {
         switch &cont in node {
         case Container:
-            cont.rect = {
-                w = cont.width * available_w,
-                h = cont.height * available_h,
-                x = cursor.x,
-                y = cursor.y,
+            // align: offset on cross axis
+            cross_offset : f32 = 0
+            switch container.style.align {
+            case .Start: cross_offset = 0
+            case .Center:
+                switch container.direction {
+                case .Row: cross_offset = (available_h - cont.rect.h) / 2
+                case .Col: cross_offset = (available_w - cont.rect.w) / 2
+                }
+            case .End:
+                switch container.direction {
+                case .Row: cross_offset = available_h - cont.rect.h
+                case .Col: cross_offset = available_w - cont.rect.w
+                }
             }
 
-            layout(&cont, cont.rect)
+            switch container.direction {
+            case .Row:
+                cont.rect.x = cursor.x
+                cont.rect.y = cursor.y + cross_offset
+            case .Col:
+                cont.rect.x = cursor.x + cross_offset
+                cont.rect.y = cursor.y
+            }
+
+            layout(&cont, cont.rect, measure)
 
             gap : f32 = 0.0
             if index != (len(container.elements) - 1) {
@@ -144,7 +212,35 @@ layout :: proc(container: ^Container, parent_rect: Rect) {
             case .Col: cursor.y += cont.rect.h + gap
             }
         case Text:
-            cont.pos = { cursor.x, cursor.y }
+            cross_offset : f32 = 0
+            switch container.style.align {
+            case .Start: cross_offset = 0
+            case .Center:
+                switch container.direction {
+                case .Row: cross_offset = (available_h - cont.bounds[1]) / 2
+                case .Col: cross_offset = (available_w - cont.bounds[0]) / 2
+                }
+            case .End:
+                switch container.direction {
+                case .Row: cross_offset = available_h - cont.bounds[1]
+                case .Col: cross_offset = available_w - cont.bounds[0]
+                }
+            }
+
+            switch container.direction {
+            case .Row: cont.pos = { cursor.x, cursor.y + cross_offset }
+            case .Col: cont.pos = { cursor.x + cross_offset, cursor.y }
+            }
+
+            gap : f32 = 0.0
+            if index != (len(container.elements) - 1) {
+                gap = f32(container.style.gap)
+            }
+
+            switch container.direction {
+            case .Row: cursor.x += cont.bounds[0] + gap
+            case .Col: cursor.y += cont.bounds[1] + gap
+            }
         }
     }
 }
@@ -163,21 +259,20 @@ render :: proc(container: ^Container, draw_fn: proc(node: ^Node)) {
 }
 
 print_tree :: proc(container: ^Container) {
-    depth : int = 0
     sb := strings.builder_make()
 
     n := Node(container^)
-    walk_tree(&n, depth, &sb)
+    walk_tree(&n, &sb)
     fmt.print(strings.to_string(sb))
 }
 
-walk_tree :: proc(node: ^Node, depth: int, sb: ^strings.Builder) {
+walk_tree :: proc(node: ^Node, sb: ^strings.Builder, depth: int = 0) {
     strings.write_string(sb, write_node(node, depth))
 
     switch &elem in node {
     case Container:
         for &child in elem.elements {
-            walk_tree(&child, depth + 1, sb)
+            walk_tree(&child, sb, depth + 1)
         }
     case Text: // text is always a leaf node
     }
