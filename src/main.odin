@@ -7,7 +7,7 @@ import rl "vendor:raylib"
 SCREEN_WIDTH  :: 1080
 SCREEN_HEIGHT :: 720
 
-MOUSE_SENSITIVITY :: 20
+MOUSE_SENSITIVITY :: 50
 
 FONT_DATA :: #load("../resources/fonts/JetBrainsMono-Regular.ttf")
 
@@ -97,7 +97,7 @@ main :: proc() {
 
         switch active_example {
         case 1: layout = example_simple(render_w, render_h, &ctx, mp)
-        case 2: layout = example_viewer(render_w, render_h, &ctx, show_labels)
+        case 2: layout = example_viewer(render_w, render_h, &ctx, show_labels, &scroll_offset)
         case 3: layout = example_btop(render_w, render_h, &ctx, show_labels)
         case 4: layout = example_image(render_w, render_h, &ctx, &img_texture)
         case 5: layout = example_button(render_w, render_h, &ctx, &count)

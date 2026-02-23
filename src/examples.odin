@@ -73,14 +73,16 @@ example_simple :: proc(w, h: i32, ctx: ^lx.Context, mouse_pos: lx.Vec2) -> ^lx.B
     return root
 }
 
-example_viewer :: proc(w, h : i32, ctx: ^lx.Context, show_labels := false) -> ^lx.Box {
+example_viewer :: proc(w, h : i32, ctx: ^lx.Context, show_labels := false, offset : ^f32) -> ^lx.Box {
     root := lx.box("vr", 1, 1, lx.Direction.Col, style = { padding = 7, gap = 7 })
     view := lx.box("vv", -1, 0.9, style = { bg = { 150, 120, 140, 255 }, round = 10, align = .Center, justify = .Center })
     lx.add_elements(view, lx.text("Nothing to view here :|", size = 35))
-    thumbnails := lx.box("vt", -1, -1, style = { bg = { 70, 70, 100, 200 }, padding = 5, gap = 7, round = 10 })
-    for i in 0..< 10 {
-        label := fmt.tprintf("vt-%d", i+1)
-        b := lx.box(label, -1, -1, style = { bg = { 120, 120, 150, 255 }, round = 10, align = .Center, justify = .Center })
+    thumbnails := lx.scroll_area("vt", -1, -1, direction = .Row, style = { bg = { 70, 70, 100, 200 }, padding = 5, gap = 7, round = 10 })
+    thumbnails.scroll.offset = offset^
+
+    for i in 0..< 50 {
+        label := fmt.tprintf("vt-%d", i + 1)
+        b := lx.box(label, 100, -1, size_mode = .Mixed, style = { bg = { 120, 120, 150, 255 }, round = 10, align = .Center, justify = .Center })
         lx.add_elements(b, lx.text(label, size = 20, hidden = !show_labels))
         lx.add_elements(thumbnails, b)
     }
@@ -129,7 +131,7 @@ example_btop :: proc(w, h : i32, ctx: ^lx.Context, show_labels := false) -> ^lx.
         lx.add_elements(root, top, bottom)
     } else {
         too_small := lx.box("small", -1, -1, direction = .Col, style = { bg = { 250, 140, 140, 200 }, align = .Center, justify = .Center, round = 5 })
-        warn_icon := lx.text(lx.ICON_OCTAGON_ALERT, icon = true, size = 60)
+        warn_icon := lx.icon(lx.ICON_OCTAGON_ALERT, size = 60)
         label := fmt.tprintf("Window too small:\nWidth = %d, Height = %d\n\nNeeded for current config:\nWidth = %d+, Height = %d+", w, h, min_size, min_size)
         lx.add_elements(too_small, warn_icon, lx.text(label, size = 30))
         lx.add_elements(root, too_small)
@@ -162,15 +164,18 @@ example_image :: proc(w, h : i32, ctx: ^lx.Context, img_texture: ^ImgTexture) ->
 example_button :: proc(w ,h : i32, ctx: ^lx.Context, count: ^int) -> ^lx.Box {
     root := lx.box("rb", 1, 1, .Col, style = { align = .Center, justify = .Center, gap = 10, padding = 10 } )
     text := lx.text(fmt.tprintf("Count: %d", count^), size = 40)
-    buttons := lx.box("btns", -1, 0.5, style = { gap = 10 })
+    buttons := lx.box("btns", -1, 0.5, style = { gap = 10, justify = .Center })
     lx.add_elements(root, text, buttons)
 
-    if lx.button(buttons, "Decrement", -1, 0.1, ctx, style = { bg = {  200, 100, 100, 255  } }) {
+    if lx.icon_text_button(buttons, "Decrement", 200, 40, lx.ICON_MINUS, ctx = ctx, size_mode = .Mixed, style = { bg = {  200, 100, 100, 255  } }) {
         count^ -= 1
     }
 
-    if lx.icon_text_button(buttons, "Increment", -1, 0.1, lx.ICON_PLUS, ctx = ctx, size = 20, style = {  bg = {  100, 200, 100, 255  } }) {
+    if lx.icon_text_button(buttons, "Increment", 200, 40, lx.ICON_PLUS, ctx = ctx, size_mode = .Mixed, size = 20, style = {  bg = {  100, 200, 100, 255  } }) {
         count^ += 1
+    }
+    if lx.icon_button(buttons, lx.ICON_REPEAT, 40, 40, size = 20, ctx = ctx, style = { bg = {  150, 100, 150, 255  } }) {
+        count^ = 0
     }
 
     lx.layout(root, { 0, 0, f32(w), f32(h) }, ctx)
@@ -196,7 +201,7 @@ example_scrollable :: proc(w ,h : i32, ctx: ^lx.Context, offset: ^f32) -> ^lx.Bo
 
     for idx in 0..<50 {
         label := fmt.tprintf("horizontal-c-%d", idx + 1)
-        container := lx.box(label, 0.5, -1, style = {  bg = { 150, 150, 150, 200 }, align = .Center, justify = .Center, round = 10 })
+        container := lx.box(label, 400, 200, size_mode = .Mixed, style = {  bg = { 150, 150, 150, 200 }, align = .Center, round = 10 })
         lx.add_elements(container, lx.text(label, size = 30))
         lx.add_elements(horizontal_scroll, container)
     }
