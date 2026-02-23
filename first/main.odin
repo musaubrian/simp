@@ -65,7 +65,7 @@ main :: proc() {
 	if release_mode {
 		append(&build_args, fmt.aprintf("-define:VERSION=%s", version), "-o:speed")
 	} else {
-		append(&build_args, fmt.aprintf("-define:VERSION=%s-debug", version))
+		append(&build_args, fmt.aprintf("-define:VERSION=%s-debug", version), "-debug")
 	}
 
 	build_state, _, build_err := run_command(Command{args = build_args[:]})
