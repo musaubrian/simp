@@ -3,7 +3,7 @@ package main
 import "lx"
 import "core:fmt"
 
-Examples :: []string{" - This layout", " - Simple layout", " - Viewer layout"}
+Examples :: []string{" - This layout", " - Simple layout", " - Viewer layout", " - Btop layout"}
 
 example_default :: proc(w, h: i32, ctx: ^lx.Context) -> ^lx.Box {
     root := lx.box("df-r", 1, 1, style = { bg = { 40, 40, 40, 255 }, padding = 50 })
@@ -68,7 +68,7 @@ example_simple :: proc(w, h: i32, ctx: ^lx.Context, mouse_pos: lx.Vec2) -> ^lx.B
     return root
 }
 
-example_viewer :: proc(w, h :i32, ctx: ^lx.Context, show_labels := false) -> ^lx.Box {
+example_viewer :: proc(w, h : i32, ctx: ^lx.Context, show_labels := false) -> ^lx.Box {
     root := lx.box("vr", 1, 1, lx.Direction.Col, style = { padding = 7, gap = 7 })
     view := lx.box("vv", -1, 0.9, style = { bg = { 150, 120, 140, 255 }, round = 10, align = .Center, justify = .Center })
     lx.add_elements(view, lx.text("Nothing to view here :|", size = 35))
@@ -82,5 +82,41 @@ example_viewer :: proc(w, h :i32, ctx: ^lx.Context, show_labels := false) -> ^lx
 
     lx.add_elements(root, view, thumbnails)
     lx.layout(root, { 0, 0, f32(w), f32(h) }, ctx)
+    return root
+}
+
+example_btop :: proc(w, h : i32, ctx: ^lx.Context, show_labels := false) -> ^lx.Box {
+    padding := 10
+    root := lx.box("br", 1, 1, lx.Direction.Col, style = { padding = padding, gap = 7 })
+    top := lx.box("bt", -1, 0.3, style = { bg = { 80, 80, 80, 250 }, padding = padding, align = .Center, justify = .End })
+    top_child := lx.box("bt-c", 0.4, 0.6, style = { bg = { 100, 100, 100, 255 } })
+    if show_labels { lx.add_elements(top_child, lx.text("CPU")) }
+    lx.add_elements(top, top_child)
+
+    bottom := lx.box("bb", -1, -1, style = { gap = 7 })
+    bottom_l := lx.box("bbl", -1, -1, lx.Direction.Col, style = { padding = 1, gap = 5 })
+    bottom_l_t := lx.box("bblt", -1, -1, style = { bg = { 130, 130, 130, 100 }, gap = 7, padding = padding / 2 })
+    mem := lx.box("mem",  -1, -1, style = { bg = { 160, 150, 200, 200 } })
+    if show_labels { lx.add_elements(mem, lx.text("Memory Usage")) }
+    disks := lx.box("disks", -1, -1, style = { bg = { 160, 150, 200, 200 } } )
+    if show_labels { lx.add_elements(disks, lx.text("Disks Usage")) }
+    lx.add_elements(bottom_l_t, mem, disks)
+
+    bottom_l_b := lx.box("bblb", -1, -1, style = { bg = { 170, 170, 200, 200 }, padding = padding, align = .Center, justify = .End })
+    download_upload := lx.box("download_upload", 0.5, 0.6, style = { bg = { 100, 100, 110, 200 } })
+    if show_labels { lx.add_elements(download_upload, lx.text("Download/Upload")) }
+    lx.add_elements(bottom_l_b, download_upload)
+
+    lx.add_elements(bottom_l, bottom_l_t, bottom_l_b)
+
+
+    // 6 = _Box_Padding (5) + 1
+    bottom_r := lx.box("bbr", -1, -1, style = { bg = { 130, 130, 130, 100 }, padding = 6 })
+    if show_labels {lx.add_elements(bottom_r, lx.text("Process List"))}
+    lx.add_elements(bottom,  bottom_l, bottom_r)
+
+    lx.add_elements(root, top, bottom)
+    lx.layout(root, { 0,0, f32(w), f32(h) }, ctx)
+
     return root
 }

@@ -38,7 +38,7 @@ main :: proc() {
     }
 
     active_example := 0
-    show_thumbnail_labels := false
+    show_labels := false
 
     context.allocator = context.temp_allocator
     for !rl.WindowShouldClose() {
@@ -52,7 +52,7 @@ main :: proc() {
             active_example = len(Examples) - 1 if (active_example - 1) < 0 else active_example - 1
         }
         if rl.IsKeyPressed(rl.KeyboardKey.L) {
-            show_thumbnail_labels = !show_thumbnail_labels
+            show_labels = !show_labels
         }
 
         rl.ClearBackground(rl.Color{ 23, 23, 23, 0 })
@@ -66,10 +66,11 @@ main :: proc() {
 
         layout := example_default(render_w, render_h, &ctx)
 
-        if active_example == 1 {
-            layout = example_simple(render_w, render_h, &ctx, mp)
-        } else if active_example == 2 {
-            layout = example_viewer(render_w, render_h, &ctx, show_thumbnail_labels)
+        switch active_example {
+        case 1: layout = example_simple(render_w, render_h, &ctx, mp)
+        case 2: layout = example_viewer(render_w, render_h, &ctx, show_labels)
+        case 3: layout = example_btop(render_w, render_h, &ctx, show_labels)
+        case:   example_default(render_w, render_h, &ctx)
         }
 
         lx.render(layout, &ctx, proc(element: ^lx.Element, ctx: ^lx.Context) {
