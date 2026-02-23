@@ -77,9 +77,13 @@ Vec2  :: distinct [2]f32
 Color :: distinct [4]u8
 
 // Defaults
-_Text_Size   : f32 : 25.0
-_Text_Color  :: Color{ 255, 255, 255, 255 }
-_Box_Padding :: 5
+_Text_Size         : f32 : 25.0
+_Text_Color        :: Color{ 255, 255, 255, 255 }
+_Box_Padding       :: 5
+_Scrollbar_Size    : f32 : 5.0
+_Scrollthumb_Round : f32 : 10.0
+_Track_Color       :: Color{ 30,  30,  30,  255 }
+_Thumb_Color       :: Color{ 140, 140, 140, 255 }
 
 make_id :: proc(label: string) -> u32 { return hash.fnv32a(transmute([]u8)label) }
 
@@ -216,6 +220,12 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
     available_h := parent_rect.h - pad * 2
 
     is_row := b.direction == .Row
+
+    // Reduce available to shift scrollbar of the contents
+    if b.scroll.enabled {
+        if is_row { available_h -= _Scrollbar_Size } else { available_w -= _Scrollbar_Size }
+    }
+
     // Don't pre-subtract total gap for wrapping rows, gaps are handled per-line
     if !(is_row && b.style.wrap) {
         total_gap := f32(b.style.gap * (len(b.elements) - 1))
@@ -406,12 +416,14 @@ _handle_input :: proc(b: ^Box, ctx: ^Context) {
     hovered := point_in_rect(b.bounds, ctx.state.mouse_pos)
     if hovered { ctx.state.hover_id = b.id }
 
-    if b.scroll.enabled && hovered && ctx.state.scroll_wheel != 0 {
-        b.scroll.offset -= ctx.state.scroll_wheel
-        max_scroll := max(b.scroll.content_size - (b.bounds.h if b.direction == .Col else b.bounds.w), 0)
-        b.scroll.offset = clamp(b.scroll.offset, 0, max_scroll)
+    if b.scroll.enabled && hovered {
+        is_row := b.direction == .Row
+        visible := b.bounds.w if is_row else b.bounds.h
+        max_scroll := max(b.scroll.content_size - visible, 0)
 
-        // Update external scroll offset
+        if ctx.state.scroll_wheel != 0 { b.scroll.offset -= ctx.state.scroll_wheel }
+
+        b.scroll.offset = clamp(b.scroll.offset, 0, max_scroll)
         if ctx.scroll_offset != nil { ctx.scroll_offset^ = b.scroll.offset }
     }
 
@@ -430,9 +442,7 @@ render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Co
     root_element := Element(b)
     draw_fn(&root_element, ctx)
 
-    if b.scroll.enabled && ctx.begin_scissor != nil {
-        ctx.begin_scissor(b.bounds)
-    }
+    if b.scroll.enabled && ctx.begin_scissor != nil { ctx.begin_scissor(b.bounds) }
 
     for &element in b.elements {
         switch el in element {
@@ -446,8 +456,49 @@ render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Co
         }
     }
 
-    if b.scroll.enabled && ctx.end_scissor != nil {
-        ctx.end_scissor()
+    if b.scroll.enabled && ctx.end_scissor != nil { ctx.end_scissor() }
+
+    // Draw scrollbar after scissor so it's not clipped
+    if b.scroll.enabled {
+        is_row := b.direction == .Row
+        visible := b.bounds.w if is_row else b.bounds.h
+        content := b.scroll.content_size
+
+        if content > visible {
+            max_scroll   := content - visible
+            thumb_ratio  := visible / content
+            track_length := visible
+
+            track: Box
+            thumb: Box
+
+            if is_row {
+                sx := b.bounds.x
+                sy := b.bounds.y + b.bounds.h - _Scrollbar_Size
+                track_start := sx
+
+                thumb_w := max(thumb_ratio * track_length, 20)
+                thumb_x := track_start + (b.scroll.offset / max_scroll) * (track_length - thumb_w)
+
+                track   = { bounds = { track_start, sy, track_length, _Scrollbar_Size }, style = { bg = _Track_Color } }
+                thumb   = { bounds = { thumb_x, sy, thumb_w, _Scrollbar_Size }, style = { bg = _Thumb_Color, round = _Scrollthumb_Round } }
+            } else {
+                sx := b.bounds.x + b.bounds.w - _Scrollbar_Size
+                sy := b.bounds.y
+                track_start := sy
+
+                thumb_h := max(thumb_ratio * track_length, 20)
+                thumb_y := track_start + (b.scroll.offset / max_scroll) * (track_length - thumb_h)
+
+                track    = { bounds = { sx, track_start, _Scrollbar_Size, track_length }, style = { bg = _Track_Color } }
+                thumb    = { bounds = { sx, thumb_y,     _Scrollbar_Size, thumb_h },      style = { bg = _Thumb_Color, round =_Scrollthumb_Round } }
+            }
+
+            track_el := Element(&track)
+            thumb_el := Element(&thumb)
+            draw_fn(&track_el, ctx)
+            draw_fn(&thumb_el, ctx)
+        }
     }
 }
 
