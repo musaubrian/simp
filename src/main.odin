@@ -7,6 +7,8 @@ import rl "vendor:raylib"
 SCREEN_WIDTH  :: 1080
 SCREEN_HEIGHT :: 720
 
+MOUSE_SENSITIVITY :: 15
+
 FONT_DATA :: #load("../resources/fonts/JetBrainsMono-Regular.ttf")
 
 main :: proc() {
@@ -35,8 +37,11 @@ main :: proc() {
     ctx := lx.Context {
         font = &font,
         measure_text = measure_text,
+        begin_scissor = proc(r: lx.Rect) { rl.BeginScissorMode(i32(r.x), i32(r.y), i32(r.w), i32(r.h)) },
+        end_scissor   = proc() { rl.EndScissorMode() },
     }
 
+    scroll_offset : f32 = 0
     active_example := 0
     show_labels := false
 
@@ -76,6 +81,8 @@ main :: proc() {
         mp := lx.Vec2{ rl_mp.x, rl_mp.y }
         ctx.state.mouse_pos = mp
         ctx.state.mouse_down = rl.IsMouseButtonDown(rl.MouseButton.LEFT)
+        ctx.state.scroll_wheel = rl.GetMouseWheelMoveV().y * MOUSE_SENSITIVITY
+        ctx.scroll_offset = &scroll_offset
 
         render_w := rl.GetRenderWidth()
         render_h := rl.GetRenderHeight()
@@ -88,6 +95,7 @@ main :: proc() {
         case 3: layout = example_btop(render_w, render_h, &ctx, show_labels)
         case 4: layout = example_image(render_w, render_h, &ctx, &img_texture)
         case 5: layout = example_button(render_w, render_h, &ctx, &count)
+        case 6: layout = example_scrollable(render_w, render_h, &ctx, &scroll_offset)
         case:   layout = example_default(render_w, render_h, &ctx)
         }
 

@@ -19,8 +19,15 @@ Box  :: struct {
     direction   : Direction,
     elements    : [dynamic]Element,
     bounds      : Rect,
-    state       : InteractionState,
+    hidden      : bool,
     style       : Style,
+    scroll      : Scroll_State,
+}
+
+Scroll_State :: struct {
+    enabled      : bool,
+    offset       : f32,
+    content_size : f32,
 }
 
 Text :: struct {
@@ -37,12 +44,6 @@ Image :: struct {
     pos, bounds : Vec2,
 }
 
-InteractionState :: struct {
-    active  : bool,
-    clicked : bool,
-    hidden  : bool,
-}
-
 Style :: struct {
     padding  : int,
     gap      : int,
@@ -55,9 +56,12 @@ Style :: struct {
 }
 
 Context :: struct {
-    font         : any,
-    measure_text : proc(t: ^Text, ctx: ^Context) -> Vec2,
-    state        : State,
+    font          : any,
+    scroll_offset : ^f32,
+    measure_text  : proc(t: ^Text, ctx: ^Context) -> Vec2,
+    begin_scissor : proc(rect: Rect),
+    end_scissor   : proc(),
+    state         : State,
 }
 
 Rect  :: struct { x, y, w, h: f32 }
@@ -95,7 +99,7 @@ box :: proc(label: string, w, h : f32, direction: Direction = .Row, hidden := fa
         h           = h,
         bounds      = {},
         elements    = nil,
-        state       = { hidden = hidden },
+        hidden      = hidden,
         style       = style_with_defaults,
     }
 
@@ -149,7 +153,7 @@ add_elements :: proc(parent: ^Box, elements: ..Element) {
             sz := n.w if parent.direction == .Row else n.h
             if sz >= 0 {
                 total += sz
-                if !parent.style.wrap && total > 1.0 {
+                if !parent.style.wrap && !parent.scroll.enabled && total > 1.0 {
                     fatal(
                         fmt.tprintf("ERROR: LX: (Box '%s'): children exceed 1.0, got %.2f, '%s' pushed it over by '%.2f'",
                             n.parent.debug_label, total, n.debug_label, (total - 1.0),
@@ -286,6 +290,14 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
             line_height = max(line_height, child_h)
         }
     } else {
+        // Scrollable: compute content size and clamp offset
+        if b.scroll.enabled {
+            total_gap := f32(b.style.gap * max(len(b.elements) - 1, 0))
+            b.scroll.content_size = used_main + total_gap
+            max_scroll := max(b.scroll.content_size - avail_main, 0)
+            b.scroll.offset = clamp(b.scroll.offset, 0, max_scroll)
+        }
+
         // Justify: offset on main axis (no leftover when growers consumed it)
         main_space := f32(0) if grow_count > 0 else max(avail_main - used_main, 0)
         main_offset : f32 = 0
@@ -295,7 +307,8 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
         case .End:    main_offset = main_space
         }
 
-        cursor_main  := (content_x if is_row else content_y) + main_offset
+        scroll_offset := b.scroll.offset if b.scroll.enabled else 0
+        cursor_main  := (content_x if is_row else content_y) + main_offset - scroll_offset
         cursor_cross := content_y if is_row else content_x
 
         // Second pass: position children
@@ -346,20 +359,26 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
 }
 
 handle_input :: proc(b: ^Box, ctx: ^Context) {
-    if b.state.hidden { return }
+    if b.hidden { return }
 
     ctx.state.hover_id = 0
-    ctx.state._debug = ""
     _handle_input(b, ctx)
 }
 
 @(private)
 _handle_input :: proc(b: ^Box, ctx: ^Context) {
-    if b.state.hidden { return }
+    if b.hidden { return }
 
-    if point_in_rect(b.bounds, ctx.state.mouse_pos) {
-        ctx.state.hover_id = b.id
-        ctx.state._debug = b.debug_label
+    hovered := point_in_rect(b.bounds, ctx.state.mouse_pos)
+    if hovered { ctx.state.hover_id = b.id }
+
+    if b.scroll.enabled && hovered && ctx.state.scroll_wheel != 0 {
+        b.scroll.offset -= ctx.state.scroll_wheel
+        max_scroll := max(b.scroll.content_size - (b.bounds.h if b.direction == .Col else b.bounds.w), 0)
+        b.scroll.offset = clamp(b.scroll.offset, 0, max_scroll)
+
+        // Update scroll offset
+        if ctx.scroll_offset != nil { ctx.scroll_offset^ = b.scroll.offset }
     }
 
     for &element in b.elements {
@@ -372,10 +391,14 @@ _handle_input :: proc(b: ^Box, ctx: ^Context) {
 }
 
 render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Context)) {
-    if b.state.hidden { return }
+    if b.hidden { return }
 
     root_element := Element(b)
     draw_fn(&root_element, ctx)
+
+    if b.scroll.enabled && ctx.begin_scissor != nil {
+        ctx.begin_scissor(b.bounds)
+    }
 
     for &element in b.elements {
         switch el in element {
@@ -387,6 +410,10 @@ render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Co
         case ^Image:
             draw_fn(&element, ctx)
         }
+    }
+
+    if b.scroll.enabled && ctx.end_scissor != nil {
+        ctx.end_scissor()
     }
 }
 
@@ -418,7 +445,7 @@ write_element :: proc(element: ^Element, depth := 0) -> string {
         string_el = fmt.aprintfln(
             "%*s Box(label=%s, direction=%v, width=%f, height=%f, hidden=%v)",
             depth * 2, "",
-            el.debug_label, el.direction, el.w, el.h, el.state.hidden,
+            el.debug_label, el.direction, el.w, el.h, el.hidden,
         )
     case ^Text:
         string_el = fmt.aprintfln(
