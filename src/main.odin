@@ -9,7 +9,7 @@ import rl "vendor:raylib"
 SCREEN_WIDTH  :: 1080
 SCREEN_HEIGHT :: 720
 
-
+FONT_DATA :: #load("../resources/fonts/JetBrainsMono-Regular.ttf")
 
 main :: proc() {
     args := os.args
@@ -37,7 +37,7 @@ render_layout :: proc() {
 
     rl.SetTargetFPS(60)
 
-    font := rl.LoadFontEx("resources/fonts/JetBrainsMono-Regular.ttf", 32, nil, 0)
+    font := rl.LoadFontFromMemory(".ttf", raw_data(FONT_DATA), i32(len(FONT_DATA)), 35, nil, 0)
     defer rl.UnloadFont(font)
 
     rl.SetTextureFilter(font.texture, .BILINEAR)
@@ -103,7 +103,7 @@ hello_lx :: proc(width, height: i32, ctx: ^lx.Context) -> lx.Container {
     box_cont  := lx.container("bxc", 1, 1, lx.Direction.Col, style = { bg = lx.Color(rl.DARKGRAY), round = roundness * 4, justify = .Center, align = .Center })
     bxc_label := lx.text(25, "SIMP - LX", lx.Color(rl.RAYWHITE))
     bxc_text  := lx.text(25, fmt.aprintf("HEIGHT: %d - WIDTH: %d", height, width), lx.Color(rl.RAYWHITE))
-    bxc_vers  := lx.text(20, #config(VERSION, ""), lx.Color(rl.RAYWHITE))
+    bxc_vers  := lx.text(20, #config(VERSION, ""), lx.Color(rl.WHITE))
     lx.add_elements(&box_cont, bxc_label, bxc_text, bxc_vers)
     lx.add_elements(&box, box_cont)
     lx.add_elements(&root, box)
