@@ -9,7 +9,7 @@ import "core:strings"
 Direction :: enum { Row, Col }
 Alignment :: enum { Start, Center, End }
 
-Element   :: union { ^Box, ^Text }
+Element   :: union { ^Box, ^Text, ^Image }
 
 Box  :: struct {
     parent      : ^Box,
@@ -29,6 +29,12 @@ Text :: struct {
     color       : Color,
     pos, bounds : Vec2,
     hidden      : bool,
+}
+
+Image :: struct {
+    debug_label : string,
+    texture     : any,
+    pos, bounds : Vec2,
 }
 
 InteractionState :: struct {
@@ -100,6 +106,13 @@ text :: proc(content: string, hidden := false, size := _Text_Size, color := _Tex
     return t
 }
 
+image :: proc(debug_label: string, texture: any, w, h: f32) -> ^Image {
+    i := new(Image)
+    i^ = { debug_label = debug_label, texture = texture, bounds = { w, h } }
+
+    return i
+}
+
 check_box_sizing :: proc(box: ^Box) {
     if box.w != -1 && (box.w < 0 || box.w > 1) {
         fatal(fmt.tprintf("ERROR: (Box '%s'): Width should be -1 or 0..1, got %f", box.debug_label, box.w))
@@ -117,6 +130,9 @@ add_elements :: proc(parent: ^Box, elements: ..Element) {
         case ^Box:
             sz := n.w if parent.direction == .Row else n.h
             if sz >= 0 { total += sz }
+        case ^Image:
+            sz := n.bounds[0] if parent.direction == .Row else n.bounds[1]
+            if sz >= 0 { total += sz }
         case ^Text:
         }
     }
@@ -129,9 +145,14 @@ add_elements :: proc(parent: ^Box, elements: ..Element) {
             if sz >= 0 {
                 total += sz
                 if total > 1.0 {
-                    fatal(fmt.tprintf("ERROR: LX: (Box '%s'): children exceed 1.0, got %.2f, '%s' pushed it over by '%.2f'", n.parent.debug_label, total, n.debug_label, (total - 1.0)))
+                    fatal(
+                        fmt.tprintf("ERROR: LX: (Box '%s'): children exceed 1.0, got %.2f, '%s' pushed it over by '%.2f'",
+                            n.parent.debug_label, total, n.debug_label, (total - 1.0),
+                        ),
+                    )
                 }
             }
+        case ^Image:
         case ^Text:
         }
 
@@ -198,7 +219,9 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
             } else {
                 el.bounds = { el.size, el.size }
             }
-            used_main += el.bounds.x if is_row else el.bounds.y
+            used_main += el.bounds[0] if is_row else el.bounds[1]
+        case ^Image:
+            used_main += el.bounds[0] if is_row else el.bounds[1]
         }
     }
 
@@ -213,6 +236,7 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
                     if is_row { el.bounds.w = remaining } else { el.bounds.h = remaining }
                 }
             case ^Text:
+            case ^Image:
             }
         }
     }
@@ -257,6 +281,16 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
             } else {
                 el.pos = { cursor_cross + co, cursor_main }
             }
+        case ^Image:
+            child_main_size  = el.bounds.x if is_row else el.bounds.y
+            child_cross_size = el.bounds.y if is_row else el.bounds.x
+
+            co := cross_align_offset(b.style.align, avail_cross, child_cross_size)
+            if is_row {
+                el.pos = { cursor_main, cursor_cross + co }
+            } else {
+                el.pos = { cursor_cross + co, cursor_main }
+            }
         }
 
         gap : f32 = 0
@@ -278,6 +312,8 @@ render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Co
         case ^Text:
             if el.hidden { return }
             draw_fn(&element, ctx)
+        case ^Image:
+            draw_fn(&element, ctx)
         }
     }
 }
@@ -297,7 +333,9 @@ walk_tree :: proc(element: ^Element, sb: ^strings.Builder, depth := 0) {
         for &child_elem in elem.elements {
             walk_tree(&child_elem, sb, depth + 1)
         }
-    case ^Text: // always a leaf node
+    // always leaf nodes
+    case ^Text:
+    case ^Image:
     }
 }
 
@@ -306,16 +344,23 @@ write_element :: proc(element: ^Element, depth := 0) -> string {
     switch el in element {
     case ^Box:
         string_el = fmt.aprintfln(
-            "%*s Box(label=%s, direction=%v, width=%f, height=%f)",
+            "%*s Box(label=%s, direction=%v, width=%f, height=%f, hidden=%v)",
             depth * 2, "",
-            el.debug_label, el.direction, el.w, el.h,
+            el.debug_label, el.direction, el.w, el.h, el.state.hidden,
         )
     case ^Text:
         string_el = fmt.aprintfln(
-            "%*s Text(size=%f, color=%v, pos=%v, content=\"%s\")",
+            "%*s Text(size=%f, color=%v, pos=%v, hidden=%v, content=\"%s\")",
             depth * 2, "",
-            el.size, el.color, el.pos, el.content,
+            el.size, el.color, el.pos, el.hidden, el.content,
         )
+    case ^Image:
+        string_el = fmt.aprintfln(
+            "%*s Image(label=%s pos=%v, bounds=%v)",
+            depth * 2, "",
+            el.debug_label, el.pos, el.bounds,
+        )
+
     }
 
     return string_el

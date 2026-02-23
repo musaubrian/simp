@@ -40,6 +40,17 @@ main :: proc() {
     active_example := 0
     show_labels := false
 
+
+    img := rl.LoadTexture("resources/minimal-orange.png")
+    defer rl.UnloadTexture(img)
+
+    img_size := 200
+    img_texture := ImgTexture {
+        texture = &img,
+        w = f32(img_size),
+        h = f32(img_size),
+    }
+
     context.allocator = context.temp_allocator
     for !rl.WindowShouldClose() {
         defer free_all(context.temp_allocator)
@@ -70,7 +81,8 @@ main :: proc() {
         case 1: layout = example_simple(render_w, render_h, &ctx, mp)
         case 2: layout = example_viewer(render_w, render_h, &ctx, show_labels)
         case 3: layout = example_btop(render_w, render_h, &ctx, show_labels)
-        case:   example_default(render_w, render_h, &ctx)
+        case 4: layout = example_image(render_w, render_h, &ctx, &img_texture)
+        case:   layout = example_default(render_w, render_h, &ctx)
         }
 
         lx.render(layout, &ctx, proc(element: ^lx.Element, ctx: ^lx.Context) {
@@ -90,6 +102,12 @@ main :: proc() {
                     { elem.pos.x, elem.pos.y },
                     elem.size, 0, rl.Color(elem.color),
                 )
+            case ^lx.Image:
+                texture, ok := elem.texture.(^rl.Texture2D)
+                if !ok { lx.fatal("render: Expected texture to be of ^rl.Texture2D") }
+                src_rect  := rl.Rectangle{ elem.pos.x, elem.pos.y, f32(texture.width), f32(texture.height) }
+                dest_rect := rl.Rectangle{ elem.pos[0], elem.pos[1], elem.bounds.x, elem.bounds.y }
+                rl.DrawTexturePro(texture^, src_rect, dest_rect, { 0, 0 }, 0.0, rl.WHITE)
             }
 
         })

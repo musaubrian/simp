@@ -3,7 +3,7 @@ package main
 import "lx"
 import "core:fmt"
 
-Examples :: []string{" - This layout", " - Simple layout", " - Viewer layout", " - Btop layout"}
+Examples :: []string{" - This layout", " - Simple layout", " - Viewer layout", " - Btop layout", " - Image"}
 
 example_default :: proc(w, h: i32, ctx: ^lx.Context) -> ^lx.Box {
     root := lx.box("df-r", 1, 1, style = { bg = { 40, 40, 40, 255 }, padding = 50 })
@@ -123,7 +123,7 @@ example_btop :: proc(w, h : i32, ctx: ^lx.Context, show_labels := false) -> ^lx.
 
         lx.add_elements(root, top, bottom)
     } else {
-        too_small := lx.box("small", -1, -1, style = { bg = { 250, 140, 140, 200 }, align = .Center, justify = .Center })
+        too_small := lx.box("small", -1, -1, style = { bg = { 250, 140, 140, 200 }, align = .Center, justify = .Center, round = 5 })
         label := fmt.tprintf("Window too small:\nWidth = %d, Height = %d\n\nNeeded for current config:\nWidth = %d+, Height = %d+", w, h, min_size, min_size)
         lx.add_elements(too_small, lx.text(label, size = 30))
         lx.add_elements(root, too_small)
@@ -133,3 +133,22 @@ example_btop :: proc(w, h : i32, ctx: ^lx.Context, show_labels := false) -> ^lx.
 
     return root
 }
+
+ImgTexture :: struct {
+    texture: any,
+    w, h   : f32,
+}
+example_image :: proc(w, h : i32, ctx: ^lx.Context, img_texture: ^ImgTexture) -> ^lx.Box {
+    root := lx.box("ri", 1, 1, style = { align = .Center, justify = .Center } )
+    img_box := lx.box("img-box", -1, -1, style = { bg = { 100, 100, 100, 120 }, gap = 5 } )
+    #unroll for index in 0..<3 {
+        img := lx.image(fmt.tprintf("rimg-%d", index), img_texture.texture, img_texture.w, img_texture.h)
+        lx.add_elements(img_box, img)
+    }
+
+    lx.add_elements(root, img_box)
+    lx.layout(root, { 0, 0, f32(w), f32(h) }, ctx)
+
+    return root
+}
+
