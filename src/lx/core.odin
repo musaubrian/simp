@@ -55,8 +55,13 @@ Style :: struct {
     wrap     : bool,
 }
 
+Font :: struct {
+    text : any,
+    icon : any,
+}
+
 Context :: struct {
-    font          : any,
+    font          : Font,
     scroll_offset : ^f32,
     measure_text  : proc(t: ^Text, ctx: ^Context) -> Vec2,
     begin_scissor : proc(rect: Rect),
