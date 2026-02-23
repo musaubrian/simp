@@ -101,6 +101,12 @@ add_elements :: proc(parent: ^Container, elements: ..Node) {
 layout :: proc(container: ^Container, parent_rect: Rect) {
     container.rect = parent_rect
 
+    // calculate the appropriate rounded ratio
+    if container.style.round > 0 {
+        smaller := min(parent_rect.w, parent_rect.h)
+        container.style.round = container.style.round / smaller if smaller > 0 else 0
+    }
+
     cursor : struct{ x, y: f32 } = {
         x = parent_rect.x + f32(container.style.padding),
         y = parent_rect.y + f32(container.style.padding),
