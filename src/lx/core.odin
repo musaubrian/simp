@@ -5,15 +5,17 @@ import "core:fmt"
 import "core:os"
 
 Direction :: enum { Row, Col }
+Align :: enum { Start, Center, End }
 
 Container :: struct {
-    id        : string,
-    direction : Direction,
-    width     : f32,
-    height    : f32,
-    elements  : [dynamic]Container,
-    rect      : Rect,
-    style     : Style,
+    id          : string,
+    width       : f32,
+    height      : f32,
+    direction   : Direction,
+    align       : Align,
+    elements    : [dynamic]Container,
+    rect        : Rect,
+    style       : Style,
 }
 
 Style :: struct {
@@ -21,13 +23,37 @@ Style :: struct {
     gap       : int,
     padding   : int,
     bg        : Color,
+    hover_bg  : Color,
 }
 
+MouseState :: struct {
+    pos   : Vec2,
+    left  : bool,
+    right : bool,
+}
+
+Interaction :: struct {
+    hovered : bool,
+    pressed : bool,
+    clicked : bool,
+}
+
+Vec2  :: distinct [2]f32
 Rect  :: struct { x, y, w, h: f32 }
 Color :: distinct [4]u8
 
-new_container :: proc(id: string, direction: Direction, width: f32, height: f32, style := Style{}) -> Container {
-    c := Container{ id, direction, width, height, {}, {}, style }
+
+new_container :: proc(id: string, width: f32, height: f32, direction: Direction = .Row, align : Align = .Start, style := Style{}) -> Container {
+    c := Container{
+        id = id,
+        direction = direction,
+        align = align,
+        width = width,
+        height = height,
+        rect = {},
+        elements = {},
+        style = style,
+    }
     verify_container(c)
     return c
 }
@@ -39,7 +65,7 @@ verify_container :: proc(container: Container) {
 
     if container.height < 0 || container.height > 1 {
         fatal(fmt.aprintf("ERROR: LX: (Container '%s'): Height range should be 0..1, got %f", container.id, container.height))
-    }
+   }
 }
 
 add_elements :: proc(parent: ^Container, elements: ..Container) {
@@ -56,8 +82,9 @@ add_elements :: proc(parent: ^Container, elements: ..Container) {
     }
 }
 
-layout :: proc(container: ^Container, parent_rect: Rect) {
+layout :: proc(container: ^Container, parent_rect: Rect, mouse: MouseState) {
     container.rect = parent_rect
+
     cursor : struct{ x, y: f32 } = {
         x = parent_rect.x + f32(container.style.padding),
         y = parent_rect.y + f32(container.style.padding),
@@ -82,9 +109,7 @@ layout :: proc(container: ^Container, parent_rect: Rect) {
             y = cursor.y,
         }
 
-        if len(cont.elements) != 0 {
-            layout(&cont, cont.rect)
-        }
+        layout(&cont, cont.rect, mouse)
 
         gap : f32 = 0.0
         if index != (len(container.elements) - 1) {
@@ -96,6 +121,10 @@ layout :: proc(container: ^Container, parent_rect: Rect) {
         case .Col: cursor.y += cont.rect.h + gap
         }
     }
+}
+
+begin :: proc(container: ^Container, parent_rect: Rect, mouse: MouseState) {
+    layout(container, parent_rect, mouse)
 }
 
 render :: proc(layout: ^Container, draw_fn: proc(container: ^Container)) {
@@ -128,9 +157,9 @@ walk_tree :: proc(node: ^Container, depth: int) {
 
 print_container :: proc(container: ^Container, depth: int = 0) {
     fmt.printfln(
-        "%*s Container(id=%s, direction=%v, width=%f, height=%f)",
+        "%*s Container(id=%s, direction=%v, align=%v width=%f, height=%f)",
         depth * 2, "",
-        container.id,container.direction, container.width, container.height,
+        container.id,container.direction, container.align, container.width, container.height,
     )
 }
 
