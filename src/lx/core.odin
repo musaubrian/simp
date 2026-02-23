@@ -2,6 +2,7 @@
 package lx
 
 import "core:fmt"
+import "core:hash"
 import "core:os"
 import "core:strings"
 
@@ -10,7 +11,7 @@ Alignment :: enum  { Start, Center, End }
 Node      :: union { Container, Text }
 
 Container :: struct {
-    id          : string,
+    id          : u32,
     width       : f32,
     height      : f32,
     direction   : Direction,
@@ -20,7 +21,7 @@ Container :: struct {
 }
 
 Text :: struct {
-    id       : string,
+    id       : u32,
     content  : string,
     size     : f32,
     color    : Color,
@@ -29,8 +30,9 @@ Text :: struct {
 }
 
 Context :: struct {
-    font : any,
-    measure_text_fn : proc(t: ^Text, font: ^Context) -> Vec2,
+    font            : any,
+    measure_text_fn : proc(t: ^Text, ctx: ^Context) -> Vec2,
+    ui_state        : UI_State,
 }
 
 Style :: struct {
@@ -43,17 +45,17 @@ Style :: struct {
     align     : Alignment,
 }
 
-Vec2  :: distinct [2]f32
 Rect  :: struct { x, y, w, h: f32 }
+Vec2  :: distinct [2]f32
 Color :: distinct [4]u8
 
-@private
-_current_id : int = 0
+make_id :: proc(label: string) -> u32 {
+    return hash.fnv32a(transmute([]u8)label)
+}
 
 container :: proc(label: string, width: f32, height: f32, direction: Direction = .Row, style := Style{}) -> Container {
-    _current_id += 1
     c := Container{
-        id        = fmt.aprintf("%s#%d", label, _current_id),
+        id        = make_id(label),
         direction = direction,
         width     = width,
         height    = height,
@@ -65,10 +67,9 @@ container :: proc(label: string, width: f32, height: f32, direction: Direction =
     return c
 }
 
-text :: proc(size: f32, content: string, color: Color) -> Text {
-    _current_id += 1
+text :: proc(content: string, size: f32 = DEF_FONT_SIZE, color: Color = DEF_TEXT_COLOR) -> Text {
     return Text{
-        id      = fmt.aprintf("##%d", _current_id),
+        id      = make_id(content),
         content = content,
         size    = size,
         color   = color,
@@ -141,7 +142,7 @@ layout :: proc(container: ^Container, parent_rect: Rect, ctx: ^Context) {
             case .Col: used_main += cont.rect.h
             }
         case Text:
-            if ctx != nil {
+            if ctx != nil && ctx.measure_text_fn != nil {
                 cont.bounds = ctx.measure_text_fn(&cont, ctx)
             } else {
                 cont.bounds = { cont.size, cont.size }
@@ -246,6 +247,14 @@ layout :: proc(container: ^Container, parent_rect: Rect, ctx: ^Context) {
             }
         }
     }
+
+}
+
+begin :: proc(container: ^Container, parent_rect: Rect, ctx: ^Context) {
+    layout(container, parent_rect, ctx)
+    if ctx != nil {
+        ui_cache(&ctx.ui_state, container)
+    }
 }
 
 render :: proc(container: ^Container, ctx: ^Context, draw_fn: proc(node: ^Node, ctx: ^Context)) {
@@ -264,6 +273,8 @@ render :: proc(container: ^Container, ctx: ^Context, draw_fn: proc(node: ^Node, 
 print_tree :: proc(container: ^Container) {
     sb := strings.builder_make()
 
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
     n := Node(container^)
     walk_tree(&n, &sb)
     fmt.print(strings.to_string(sb))
@@ -286,13 +297,13 @@ write_node :: proc(node: ^Node, depth: int = 0) -> string {
     switch c in node {
     case Container:
        n = fmt.aprintfln(
-            "%*s Container(id=%s, direction=%v, width=%f, height=%f)",
+            "%*s Container(id=%d, direction=%v, width=%f, height=%f)",
             depth * 2, "",
             c.id, c.direction, c.width, c.height,
         )
     case Text:
         n = fmt.aprintfln(
-            "%*s Text(id=%s, size=%f, color=%v, pos=%v, content=%s)",
+            "%*s Text(id=%d, size=%f, color=%v, pos=%v, content=%s)",
             depth * 2, "",
             c.id, c.size, c.color, c.pos, c.content,
         )

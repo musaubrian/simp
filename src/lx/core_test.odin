@@ -17,7 +17,7 @@ test_add_elements :: proc(t: ^testing.T) {
     defer free_all(context.temp_allocator)
     root    := container("root", 1, 1, Direction.Col, style = { bg = { 10, 100, 10, 255 } })
     element := container("element", 0.5, 0.5, style = { bg = { 100, 100, 100, 255 } })
-    text    := text(16, "hello", { 100, 100, 100, 255 })
+    text    := text("hello")
     add_elements(&root, element, text)
 
     assert(len(root.elements) == 2, "Expected root's elements to be 2")
@@ -98,7 +98,6 @@ test_layout_gap :: proc(t: ^testing.T) {
 
     ca := root.elements[0].(Container)
     cb := root.elements[1].(Container)
-    // available_w = 200 - 10(gap) = 190
     testing.expect_value(t, ca.rect.w, f32(95))
     testing.expect_value(t, cb.rect.x, f32(105)) // 95 + 10 gap
     testing.expect_value(t, cb.rect.w, f32(95))
