@@ -44,13 +44,14 @@ InteractionState :: struct {
 }
 
 Style :: struct {
-    padding : int,
-    gap     : int,
-    round   : f32,
-    bg      : Color,
-    justify : Alignment,
-    align   : Alignment,
-    wrap    : bool,
+    padding  : int,
+    gap      : int,
+    round    : f32,
+    bg       : Color,
+    hover_bg : Color,
+    justify  : Alignment,
+    align    : Alignment,
+    wrap     : bool,
 }
 
 Context :: struct {
@@ -75,13 +76,14 @@ box :: proc(label: string, w, h : f32, direction: Direction = .Row, hidden := fa
 
     style_with_defaults := Style{
         // Need to find a way of opting out of default padding
-        padding = style.padding if style.padding > 0 else _Box_Padding,
-        gap     = style.gap,
-        round   = style.round,
-        bg      = style.bg,
-        justify = style.justify,
-        align   = style.align,
-        wrap    = style.wrap,
+        padding  = style.padding if style.padding > 0 else _Box_Padding,
+        gap      = style.gap,
+        round    = style.round,
+        bg       = style.bg,
+        hover_bg = style.hover_bg,
+        justify  = style.justify,
+        align    = style.align,
+        wrap     = style.wrap,
     }
 
     b^ = {
@@ -343,17 +345,37 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
     }
 }
 
-render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Context)) {
+handle_input :: proc(b: ^Box, ctx: ^Context) {
     if b.state.hidden { return }
 
-    root_element := Element(b)
-    draw_fn(&root_element, ctx)
+    ctx.state.hover_id = 0
+    ctx.state._debug = ""
+    _handle_input(b, ctx)
+}
+
+@(private)
+_handle_input :: proc(b: ^Box, ctx: ^Context) {
+    if b.state.hidden { return }
 
     if point_in_rect(b.bounds, ctx.state.mouse_pos) {
         ctx.state.hover_id = b.id
         ctx.state._debug = b.debug_label
     }
 
+    for &element in b.elements {
+        switch el in element {
+        case ^Box:  _handle_input(el, ctx)
+        case ^Text:
+        case ^Image:
+        }
+    }
+}
+
+render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Context)) {
+    if b.state.hidden { return }
+
+    root_element := Element(b)
+    draw_fn(&root_element, ctx)
 
     for &element in b.elements {
         switch el in element {

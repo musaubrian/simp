@@ -51,6 +51,8 @@ main :: proc() {
         h = f32(img_size),
     }
 
+    count := 0
+
     context.allocator = context.temp_allocator
     for !rl.WindowShouldClose() {
         defer free_all(context.temp_allocator)
@@ -71,7 +73,10 @@ main :: proc() {
         defer rl.EndDrawing()
 
         rl_mp := rl.GetMousePosition()
-        mp := lx.Vec2{rl_mp.x, rl_mp.y}
+        mp := lx.Vec2{ rl_mp.x, rl_mp.y }
+        ctx.state.mouse_pos = mp
+        ctx.state.mouse_down = rl.IsMouseButtonDown(rl.MouseButton.LEFT)
+
         render_w := rl.GetRenderWidth()
         render_h := rl.GetRenderHeight()
 
@@ -82,13 +87,20 @@ main :: proc() {
         case 2: layout = example_viewer(render_w, render_h, &ctx, show_labels)
         case 3: layout = example_btop(render_w, render_h, &ctx, show_labels)
         case 4: layout = example_image(render_w, render_h, &ctx, &img_texture)
+        case 5: layout = example_button(render_w, render_h, &ctx, &count)
         case:   layout = example_default(render_w, render_h, &ctx)
         }
 
+        lx.handle_input(layout, &ctx)
         lx.render(layout, &ctx, proc(element: ^lx.Element, ctx: ^lx.Context) {
             switch &elem in element {
             case ^lx.Box:
                 bg := elem.style.bg
+
+                if ctx.state.hover_id == elem.id && elem.style.hover_bg.r != 0 {
+                    bg = elem.style.hover_bg
+                }
+
                 rl.DrawRectangleRounded(
                     { elem.bounds.x, elem.bounds.y, elem.bounds.w, elem.bounds.h },
                     elem.style.round, 16, rl.Color(bg),
