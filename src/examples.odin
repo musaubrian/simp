@@ -3,7 +3,7 @@ package main
 import "lx"
 import "core:fmt"
 
-Examples :: []string{" 0 - This layout", " 1 - Simple layout"}
+Examples :: []string{" - This layout", " - Simple layout", " - Viewer layout"}
 
 example_default :: proc(w, h: i32, ctx: ^lx.Context) -> ^lx.Box {
     root := lx.box("df-r", 1, 1, style = { bg = { 40, 40, 40, 255 }, padding = 50 })
@@ -65,5 +65,22 @@ example_simple :: proc(w, h: i32, ctx: ^lx.Context, mouse_pos: lx.Vec2) -> ^lx.B
 
     lx.layout(root, { 0, 0, f32(w), f32(h) }, ctx)
 
+    return root
+}
+
+example_viewer :: proc(w, h :i32, ctx: ^lx.Context, show_labels := false) -> ^lx.Box {
+    root := lx.box("vr", 1, 1, lx.Direction.Col, style = { padding = 7, gap = 7 })
+    view := lx.box("vv", -1, 0.9, style = { bg = { 150, 120, 140, 255 }, round = 10, align = .Center, justify = .Center })
+    lx.add_elements(view, lx.text("Nothing to view here :|", size = 35))
+    thumbnails := lx.box("vt", -1, -1, style = { bg = { 70, 70, 100, 200 }, padding = 5, gap = 7, round = 10 })
+    for i in 0..< 10 {
+        label := fmt.tprintf("vt-%d", i+1)
+        b := lx.box(label, -1, -1, style = { bg = { 120, 120, 150, 255 }, round = 10, align = .Center, justify = .Center })
+        if show_labels { lx.add_elements(b, lx.text(label, size = 20)) }
+        lx.add_elements(thumbnails, b)
+    }
+
+    lx.add_elements(root, view, thumbnails)
+    lx.layout(root, { 0, 0, f32(w), f32(h) }, ctx)
     return root
 }
