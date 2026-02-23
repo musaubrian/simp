@@ -36,6 +36,7 @@ Text :: struct {
     color       : Color,
     pos, bounds : Vec2,
     hidden      : bool,
+    icon        : bool,
 }
 
 Image :: struct {
@@ -113,9 +114,9 @@ box :: proc(label: string, w, h : f32, direction: Direction = .Row, hidden := fa
     return b
 }
 
-text :: proc(content: string, hidden := false, size := _Text_Size, color := _Text_Color, allocator := context.allocator) -> ^Text {
+text :: proc(content: string, hidden := false, icon := false, size := _Text_Size, color := _Text_Color, allocator := context.allocator) -> ^Text {
     t := new(Text)
-    t^ = { content = content, size = size, color = color, hidden = hidden }
+    t^ = { content = content, size = size, color = color, hidden = hidden, icon = icon }
 
     return t
 }
