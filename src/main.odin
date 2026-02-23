@@ -18,13 +18,19 @@ main :: proc() {
 
     rl.SetTargetFPS(60)
 
-    font := rl.LoadFontFromMemory(".ttf", raw_data(FONT_DATA), i32(len(FONT_DATA)), 50, nil, 0)
-    defer rl.UnloadFont(font)
+    text_font := rl.LoadFontFromMemory(".ttf", raw_data(FONT_DATA), i32(len(FONT_DATA)), 50, nil, 0)
+    defer rl.UnloadFont(text_font)
 
-    rl.SetTextureFilter(font.texture, .BILINEAR)
+    icon_font := rl.LoadFontFromMemory(".ttf", raw_data(lx.ICON_FONT_DATA), i32(len(lx.ICON_FONT_DATA)), 50,
+                                        raw_data(lx.ICON_CODEPOINTS), i32(len(lx.ICON_CODEPOINTS)))
+    defer rl.UnloadFont(icon_font)
+
+    rl.SetTextureFilter(text_font.texture, .BILINEAR)
+    rl.SetTextureFilter(icon_font.texture, .BILINEAR)
 
     measure_text :: proc(t: ^lx.Text, ctx: ^lx.Context) -> lx.Vec2 {
-        rl_font, ok := ctx.font.(^rl.Font)
+        font_any := ctx.font.icon if t.icon else ctx.font.text
+        rl_font, ok := font_any.(^rl.Font)
         if !ok {
             lx.fatal("measure_text: Expected font to be of rl.Font")
         }
@@ -35,7 +41,7 @@ main :: proc() {
 
 
     ctx := lx.Context {
-        font = &font,
+        font = { text = &text_font, icon = &icon_font },
         measure_text = measure_text,
         begin_scissor = proc(r: lx.Rect) { rl.BeginScissorMode(i32(r.x), i32(r.y), i32(r.w), i32(r.h)) },
         end_scissor   = proc() { rl.EndScissorMode() },
@@ -114,7 +120,8 @@ main :: proc() {
                     elem.style.round, 16, rl.Color(bg),
                 )
             case ^lx.Text:
-                font, ok := ctx.font.(^rl.Font)
+                font_any := ctx.font.icon if elem.icon else ctx.font.text
+                font, ok := font_any.(^rl.Font)
                 if !ok { lx.fatal("render: Expected font to be of ^rl.Font") }
                 rl.DrawTextEx(
                     font^,
