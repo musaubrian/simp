@@ -118,11 +118,18 @@ box :: proc(label: string, w, h : f32, direction: Direction = .Row, size_mode: S
     return b
 }
 
-text :: proc(content: string, hidden := false, icon := false, size := _Text_Size, color := _Text_Color, allocator := context.allocator) -> ^Text {
+text :: proc(content: string, hidden := false, size := _Text_Size, color := _Text_Color, allocator := context.allocator) -> ^Text {
     t := new(Text)
-    t^ = { content = content, size = size, color = color, hidden = hidden, icon = icon }
+    t^ = { content = content, size = size, color = color, hidden = hidden, icon = false }
 
     return t
+}
+
+icon :: proc(name: string, size := _Text_Size, color := _Text_Color, allocator := context.allocator) -> ^Text {
+    ic := new(Text)
+    ic^ = { content = name, size = size, color = color, icon = true }
+
+    return ic
 }
 
 image :: proc(debug_label: string, texture: any, w, h: f32) -> ^Image {
