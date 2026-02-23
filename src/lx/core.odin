@@ -8,6 +8,7 @@ import "core:strings"
 
 Direction :: enum { Row, Col }
 Alignment :: enum { Start, Center, End }
+Size_Mode :: enum { Relative, Mixed }
 
 Element   :: union { ^Box, ^Text, ^Image }
 
@@ -16,6 +17,7 @@ Box  :: struct {
     id          : u32,
     debug_label : string,
     w, h        : f32,
+    size_mode   : Size_Mode,
     direction   : Direction,
     elements    : [dynamic]Element,
     bounds      : Rect,
@@ -81,7 +83,8 @@ _Box_Padding :: 5
 
 make_id :: proc(label: string) -> u32 { return hash.fnv32a(transmute([]u8)label) }
 
-box :: proc(label: string, w, h : f32, direction: Direction = .Row, hidden := false, parent : ^Box = nil, style := Style{}, allocator := context.allocator) -> ^Box {
+box :: proc(label: string, w, h : f32, direction: Direction = .Row, size_mode: Size_Mode = .Relative,
+            hidden := false, parent : ^Box = nil, style := Style{}, allocator := context.allocator) -> ^Box {
     b := new(Box)
 
     style_with_defaults := Style{
@@ -101,6 +104,7 @@ box :: proc(label: string, w, h : f32, direction: Direction = .Row, hidden := fa
         debug_label = label,
         parent      = parent,
         direction   = direction,
+        size_mode   = size_mode,
         w           = w,
         h           = h,
         bounds      = {},
@@ -129,6 +133,8 @@ image :: proc(debug_label: string, texture: any, w, h: f32) -> ^Image {
 }
 
 check_box_sizing :: proc(box: ^Box) {
+    if box.size_mode == .Mixed { return }
+
     if box.w != -1 && (box.w < 0 || box.w > 1) {
         fatal(fmt.tprintf("ERROR: (Box '%s'): Width should be -1 or 0..1, got %f", box.debug_label, box.w))
     }
@@ -156,15 +162,17 @@ add_elements :: proc(parent: ^Box, elements: ..Element) {
         switch n in el {
         case ^Box:
             n.parent = parent
-            sz := n.w if parent.direction == .Row else n.h
-            if sz >= 0 {
-                total += sz
-                if !parent.style.wrap && !parent.scroll.enabled && total > 1.0 {
-                    fatal(
-                        fmt.tprintf("ERROR: LX: (Box '%s'): children exceed 1.0, got %.2f, '%s' pushed it over by '%.2f'",
-                            n.parent.debug_label, total, n.debug_label, (total - 1.0),
-                        ),
-                    )
+            if n.size_mode == .Relative {
+                sz := n.w if parent.direction == .Row else n.h
+                if sz >= 0 {
+                    total += sz
+                    if !parent.style.wrap && !parent.scroll.enabled && total > 1.0 {
+                        fatal(
+                            fmt.tprintf("ERROR: LX: (Box '%s'): children exceed 1.0, got %.2f, '%s' pushed it over by '%.2f'",
+                                n.parent.debug_label, total, n.debug_label, (total - 1.0),
+                            ),
+                        )
+                    }
                 }
             }
         case ^Image:
@@ -219,17 +227,30 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
             main_frac  := el.w if is_row else el.h
             cross_frac := el.h if is_row else el.w
 
-            if main_frac == -1 {
-                grow_count += 1
+            if el.size_mode == .Mixed {
+                if is_row { el.bounds.w = el.w; el.bounds.h = el.h } else { el.bounds.w = el.w; el.bounds.h = el.h }
+                // -1 on cross axis still means fill
+                if cross_frac == -1 {
+                    if is_row { el.bounds.h = available_h } else { el.bounds.w = available_w }
+                }
+                if main_frac == -1 {
+                    grow_count += 1
+                } else {
+                    used_main += el.bounds.w if is_row else el.bounds.h
+                }
             } else {
-                if is_row { el.bounds.w = main_frac * available_w } else { el.bounds.h = main_frac * available_h }
-                used_main += el.bounds.w if is_row else el.bounds.h
-            }
+                if main_frac == -1 {
+                    grow_count += 1
+                } else {
+                    if is_row { el.bounds.w = main_frac * available_w } else { el.bounds.h = main_frac * available_h }
+                    used_main += el.bounds.w if is_row else el.bounds.h
+                }
 
-            if cross_frac == -1 {
-                if is_row { el.bounds.h = available_h } else { el.bounds.w = available_w }
-            } else {
-                if is_row { el.bounds.h = cross_frac * available_h } else { el.bounds.w = cross_frac * available_w }
+                if cross_frac == -1 {
+                    if is_row { el.bounds.h = available_h } else { el.bounds.w = available_w }
+                } else {
+                    if is_row { el.bounds.h = cross_frac * available_h } else { el.bounds.w = cross_frac * available_w }
+                }
             }
         case ^Text:
             if ctx != nil && ctx.measure_text != nil {
@@ -449,9 +470,9 @@ write_element :: proc(element: ^Element, depth := 0) -> string {
     switch el in element {
     case ^Box:
         string_el = fmt.aprintfln(
-            "%*s Box(label=%s, direction=%v, width=%f, height=%f, hidden=%v)",
+            "%*s Box(label=%s, direction=%v, width=%f, height=%f, size_mode=%v)",
             depth * 2, "",
-            el.debug_label, el.direction, el.w, el.h, el.hidden,
+            el.debug_label, el.direction, el.w, el.h, el.size_mode,
         )
     case ^Text:
         string_el = fmt.aprintfln(
