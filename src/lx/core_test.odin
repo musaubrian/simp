@@ -7,26 +7,45 @@ import "core:fmt"
 ctx := Context{}
 
 @private
-expect_approx :: proc(t: ^testing.T, got: f32, expected: f32, loc := #caller_location) {
+expect_approx :: proc(got: f32, expected: f32) {
     assert(math.abs(got - expected) <= 0.01, fmt.aprintf("expected %f, got %f", expected, got))
+}
+
+@(test)
+test_box :: proc(t: ^testing.T) {
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+    b := box("root", 1.0, 1.0)
+    testing.expect_value(t, b.w, f32(1.0))
+    testing.expect_value(t, b.h, f32(1.0))
+    testing.expect_value(t, b.direction, Direction.Row)
+    testing.expect_value(t, b.debug_label, "root")
+}
+
+@(test)
+test_text :: proc(t: ^testing.T) {
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+    txt := text("hello")
+    testing.expect_value(t, txt.size, _Text_Size)
 }
 
 @(test)
 test_add_elements :: proc(t: ^testing.T) {
     context.allocator = context.temp_allocator
     defer free_all(context.temp_allocator)
-    root    := container("root", 1, 1, Direction.Col, style = { bg = { 10, 100, 10, 255 } })
-    element := container("element", 0.5, 0.5, style = { bg = { 100, 100, 100, 255 } })
-    text    := text("hello")
-    add_elements(&root, element, text)
+    root := box("root", 1.0, 1.0, .Col)
+    child := box("child", 0.5, 0.5)
+    txt := text("hello")
+    add_elements(root, child, txt)
 
     assert(len(root.elements) == 2, "Expected root's elements to be 2")
-    root_element := root.elements[0].(Container)
-    assert(root_element.id == element.id)
-    assert(root_element.width == element.width)
-    assert(root_element.height == element.height)
+    root_child := root.elements[0].(^Box)
+    assert(root_child.id == child.id)
+    assert(root_child.w == child.w)
+    assert(root_child.h == child.h)
 
-    _, ok := root.elements[1].(Text)
+    _, ok := root.elements[1].(^Text)
     assert(ok, "Expected second element to be Text")
 }
 
@@ -35,16 +54,16 @@ test_layout_single_child :: proc(t: ^testing.T) {
     context.allocator = context.temp_allocator
     defer free_all(context.temp_allocator)
 
-    root := container("r", 1, 1)
-    child := container("c", 0.5, 1)
-    add_elements(&root, child)
-    layout(&root, { 0, 0, 100, 100 }, &ctx)
+    root := box("r", 1, 1)
+    child := box("c", 0.5, 1)
+    add_elements(root, child)
+    layout(root, { 0, 0, 100, 100 }, &ctx)
 
-    c := root.elements[0].(Container)
-    testing.expect_value(t, c.rect.x, f32(0))
-    testing.expect_value(t, c.rect.y, f32(0))
-    testing.expect_value(t, c.rect.w, f32(50))
-    testing.expect_value(t, c.rect.h, f32(100))
+    c := root.elements[0].(^Box)
+    testing.expect_value(t, c.bounds.x, f32(0))
+    testing.expect_value(t, c.bounds.y, f32(0))
+    testing.expect_value(t, c.bounds.w, f32(50))
+    testing.expect_value(t, c.bounds.h, f32(100))
 }
 
 @(test)
@@ -52,18 +71,18 @@ test_layout_two_children_row :: proc(t: ^testing.T) {
     context.allocator = context.temp_allocator
     defer free_all(context.temp_allocator)
 
-    root := container("r", 1, 1)
-    a := container("a", 0.4, 1)
-    b := container("b", 0.6, 1)
-    add_elements(&root, a, b)
-    layout(&root, { 0, 0, 200, 100 }, &ctx)
+    root := box("r", 1, 1)
+    a := box("a", 0.4, 1)
+    b := box("b", 0.6, 1)
+    add_elements(root, a, b)
+    layout(root, { 0, 0, 200, 100 }, &ctx)
 
-    ca := root.elements[0].(Container)
-    cb := root.elements[1].(Container)
-    expect_approx(t, ca.rect.x, 0)
-    expect_approx(t, ca.rect.w, 80)
-    expect_approx(t, cb.rect.x, 80)
-    expect_approx(t, cb.rect.w, 120)
+    ca := root.elements[0].(^Box)
+    cb := root.elements[1].(^Box)
+    expect_approx(ca.bounds.x, 1)
+    expect_approx(ca.bounds.w, 80)
+    expect_approx(cb.bounds.x, 80)
+    expect_approx(cb.bounds.w, 120)
 }
 
 @(test)
@@ -71,18 +90,18 @@ test_layout_two_children_col :: proc(t: ^testing.T) {
     context.allocator = context.temp_allocator
     defer free_all(context.temp_allocator)
 
-    root := container("r", 1, 1, .Col)
-    a := container("a", 1, 0.3)
-    b := container("b", 1, 0.7)
-    add_elements(&root, a, b)
-    layout(&root, { 0, 0, 100, 200 }, &ctx)
+    root := box("r", 1, 1, .Col)
+    a := box("a", 1, 0.3)
+    b := box("b", 1, 0.7)
+    add_elements(root, a, b)
+    layout(root, { 0, 0, 100, 200 }, &ctx)
 
-    ca := root.elements[0].(Container)
-    cb := root.elements[1].(Container)
-    expect_approx(t, ca.rect.y, 0)
-    expect_approx(t, ca.rect.h, 60)
-    expect_approx(t, cb.rect.y, 60)
-    expect_approx(t, cb.rect.h, 140)
+    ca := root.elements[0].(^Box)
+    cb := root.elements[1].(^Box)
+    expect_approx(ca.bounds.y, 0)
+    expect_approx(ca.bounds.h, 60)
+    expect_approx(cb.bounds.y, 60)
+    expect_approx(cb.bounds.h, 140)
 }
 
 @(test)
@@ -90,17 +109,17 @@ test_layout_gap :: proc(t: ^testing.T) {
     context.allocator = context.temp_allocator
     defer free_all(context.temp_allocator)
 
-    root := container("r", 1, 1, style = { gap = 10 })
-    a := container("a", 0.5, 1)
-    b := container("b", 0.5, 1)
-    add_elements(&root, a, b)
-    layout(&root, { 0, 0, 200, 100 }, &ctx)
+    root := box("r", 1, 1, style = { gap = 10 })
+    a := box("a", 0.5, 1)
+    b := box("b", 0.5, 1)
+    add_elements(root, a, b)
+    layout(root, { 0, 0, 200, 100 }, &ctx)
 
-    ca := root.elements[0].(Container)
-    cb := root.elements[1].(Container)
-    testing.expect_value(t, ca.rect.w, f32(95))
-    testing.expect_value(t, cb.rect.x, f32(105)) // 95 + 10 gap
-    testing.expect_value(t, cb.rect.w, f32(95))
+    ca := root.elements[0].(^Box)
+    cb := root.elements[1].(^Box)
+    testing.expect_value(t, ca.bounds.w, f32(95))
+    testing.expect_value(t, cb.bounds.x, f32(105))
+    testing.expect_value(t, cb.bounds.w, f32(95))
 }
 
 @(test)
@@ -108,16 +127,16 @@ test_layout_padding :: proc(t: ^testing.T) {
     context.allocator = context.temp_allocator
     defer free_all(context.temp_allocator)
 
-    root := container("r", 1, 1, style = { padding = 20 })
-    child := container("c", 1, 1)
-    add_elements(&root, child)
-    layout(&root, { 0, 0, 200, 100 }, &ctx)
+    root := box("r", 1, 1, style = { padding = 20 })
+    child := box("c", 1, 1)
+    add_elements(root, child)
+    layout(root, { 0, 0, 200, 100 }, &ctx)
 
-    c := root.elements[0].(Container)
-    testing.expect_value(t, c.rect.x, f32(20))
-    testing.expect_value(t, c.rect.y, f32(20))
-    testing.expect_value(t, c.rect.w, f32(160)) // 200 - 40
-    testing.expect_value(t, c.rect.h, f32(60))  // 100 - 40
+    c := root.elements[0].(^Box)
+    testing.expect_value(t, c.bounds.x, f32(20))
+    testing.expect_value(t, c.bounds.y, f32(20))
+    testing.expect_value(t, c.bounds.w, f32(160))
+    testing.expect_value(t, c.bounds.h, f32(60))
 }
 
 @(test)
@@ -125,14 +144,14 @@ test_justify_center :: proc(t: ^testing.T) {
     context.allocator = context.temp_allocator
     defer free_all(context.temp_allocator)
 
-    root := container("r", 1, 1, style = { justify = .Center })
-    child := container("c", 0.5, 1)
-    add_elements(&root, child)
-    layout(&root, { 0, 0, 100, 100 }, &ctx)
+    root := box("r", 1, 1, style = { justify = .Center })
+    child := box("c", 0.5, 1)
+    add_elements(root, child)
+    layout(root, { 0, 0, 100, 100 }, &ctx)
 
-    c := root.elements[0].(Container)
-    testing.expect_value(t, c.rect.x, f32(25)) // (100 - 50) / 2
-    testing.expect_value(t, c.rect.w, f32(50))
+    c := root.elements[0].(^Box)
+    testing.expect_value(t, c.bounds.x, f32(25))
+    testing.expect_value(t, c.bounds.w, f32(50))
 }
 
 @(test)
@@ -140,13 +159,13 @@ test_justify_end :: proc(t: ^testing.T) {
     context.allocator = context.temp_allocator
     defer free_all(context.temp_allocator)
 
-    root := container("r", 1, 1, style = { justify = .End })
-    child := container("c", 0.5, 1)
-    add_elements(&root, child)
-    layout(&root, { 0, 0, 100, 100 }, &ctx)
+    root := box("r", 1, 1, style = { justify = .End })
+    child := box("c", 0.5, 1)
+    add_elements(root, child)
+    layout(root, { 0, 0, 100, 100 }, &ctx)
 
-    c := root.elements[0].(Container)
-    testing.expect_value(t, c.rect.x, f32(50)) // 100 - 50
+    c := root.elements[0].(^Box)
+    testing.expect_value(t, c.bounds.x, f32(50))
 }
 
 @(test)
@@ -154,13 +173,13 @@ test_align_center :: proc(t: ^testing.T) {
     context.allocator = context.temp_allocator
     defer free_all(context.temp_allocator)
 
-    root := container("r", 1, 1, style = { align = .Center })
-    child := container("c", 0.5, 0.5)
-    add_elements(&root, child)
-    layout(&root, { 0, 0, 100, 100 }, &ctx)
+    root := box("r", 1, 1, style = { align = .Center })
+    child := box("c", 0.5, 0.5)
+    add_elements(root, child)
+    layout(root, { 0, 0, 100, 100 }, &ctx)
 
-    c := root.elements[0].(Container)
-    testing.expect_value(t, c.rect.y, f32(25)) // (100 - 50) / 2
+    c := root.elements[0].(^Box)
+    testing.expect_value(t, c.bounds.y, f32(25))
 }
 
 @(test)
@@ -168,11 +187,144 @@ test_align_end :: proc(t: ^testing.T) {
     context.allocator = context.temp_allocator
     defer free_all(context.temp_allocator)
 
-    root := container("r", 1, 1, style = { align = .End })
-    child := container("c", 0.5, 0.5)
-    add_elements(&root, child)
-    layout(&root, { 0, 0, 100, 100 }, &ctx)
+    root := box("r", 1, 1, style = { align = .End })
+    child := box("c", 0.5, 0.5)
+    add_elements(root, child)
+    layout(root, { 0, 0, 100, 100 }, &ctx)
 
-    c := root.elements[0].(Container)
-    testing.expect_value(t, c.rect.y, f32(50)) // 100 - 50
+    c := root.elements[0].(^Box)
+    testing.expect_value(t, c.bounds.y, f32(50))
+}
+
+@(test)
+test_grow_single :: proc(t: ^testing.T) {
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
+    root := box("r", 1, 1)
+    child := box("c", -1, 1)
+    add_elements(root, child)
+    layout(root, { 0, 0, 200, 100 }, &ctx)
+
+    c := root.elements[0].(^Box)
+    testing.expect_value(t, c.bounds.w, f32(200))
+    testing.expect_value(t, c.bounds.h, f32(100))
+}
+
+@(test)
+test_grow_with_fixed :: proc(t: ^testing.T) {
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
+    root := box("r", 1, 1)
+    fixed := box("f", 0.4, 1)
+    grow  := box("g", -1, 1)
+    add_elements(root, fixed, grow)
+    layout(root, { 0, 0, 200, 100 }, &ctx)
+
+    cf := root.elements[0].(^Box)
+    cg := root.elements[1].(^Box)
+    testing.expect_value(t, cf.bounds.w, f32(80))
+    testing.expect_value(t, cg.bounds.w, f32(120))
+    testing.expect_value(t, cg.bounds.x, f32(80))
+}
+
+@(test)
+test_grow_two :: proc(t: ^testing.T) {
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
+    root := box("r", 1, 1)
+    a := box("a", -1, 1)
+    b := box("b", -1, 1)
+    add_elements(root, a, b)
+    layout(root, { 0, 0, 200, 100 }, &ctx)
+
+    ca := root.elements[0].(^Box)
+    cb := root.elements[1].(^Box)
+    testing.expect_value(t, ca.bounds.w, f32(100))
+    testing.expect_value(t, cb.bounds.w, f32(100))
+    testing.expect_value(t, cb.bounds.x, f32(100))
+}
+
+@(test)
+test_grow_cross_axis :: proc(t: ^testing.T) {
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
+    root := box("r", 1, 1)
+    child := box("c", 0.5, -1)
+    add_elements(root, child)
+    layout(root, { 0, 0, 200, 100 }, &ctx)
+
+    c := root.elements[0].(^Box)
+    testing.expect_value(t, c.bounds.w, f32(100))
+    testing.expect_value(t, c.bounds.h, f32(100))
+}
+
+@(test)
+test_grow_middle :: proc(t: ^testing.T) {
+    // [fixed 0.3 | grow | fixed 0.3] in 200px row
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
+    root := box("r", 1, 1)
+    a := box("a", 0.3, 1)
+    mid := box("mid", -1, 1)
+    b := box("b", 0.3, 1)
+    add_elements(root, a, mid, b)
+    layout(root, { 0, 0, 200, 100 }, &ctx)
+
+    ca   := root.elements[0].(^Box)
+    cmid := root.elements[1].(^Box)
+    cb   := root.elements[2].(^Box)
+    expect_approx(ca.bounds.x, 0)
+    expect_approx(ca.bounds.w, 60)
+    expect_approx(cmid.bounds.x, 60)
+    expect_approx(cmid.bounds.w, 80)
+    expect_approx(cb.bounds.x, 140)
+    expect_approx(cb.bounds.w, 60)
+}
+
+@(test)
+test_grow_two_with_fixed :: proc(t: ^testing.T) {
+    // [grow | fixed 0.2 | grow] in 200px row
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
+    root := box("r", 1, 1)
+    a := box("a", -1, 1)
+    mid := box("mid", 0.2, 1)
+    b := box("b", -1, 1)
+    add_elements(root, a, mid, b)
+    layout(root, { 0, 0, 200, 100 }, &ctx)
+
+    ca   := root.elements[0].(^Box)
+    cmid := root.elements[1].(^Box)
+    cb   := root.elements[2].(^Box)
+    testing.expect_value(t, ca.bounds.w, f32(80))    // (200 - 40) / 2
+    testing.expect_value(t, cmid.bounds.x, f32(80))
+    testing.expect_value(t, cmid.bounds.w, f32(40))  // 0.2 * 200
+    testing.expect_value(t, cb.bounds.x, f32(120))
+    testing.expect_value(t, cb.bounds.w, f32(80))
+}
+
+@(test)
+test_grow_with_gap :: proc(t: ^testing.T) {
+    // [fixed 0.2 | grow] with gap=10 in 200px row
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
+    root := box("r", 1, 1, style = { gap = 10 })
+    a := box("a", 0.2, 1)
+    b := box("b", -1, 1)
+    add_elements(root, a, b)
+    layout(root, { 0, 0, 200, 100 }, &ctx)
+
+    ca := root.elements[0].(^Box)
+    cb := root.elements[1].(^Box)
+    // available_w = 200 - 10(gap) = 190
+    testing.expect_value(t, ca.bounds.w, f32(38))     // 0.2 * 190
+    testing.expect_value(t, cb.bounds.x, f32(48))     // 38 + 10
+    testing.expect_value(t, cb.bounds.w, f32(152))    // 190 - 38
 }
