@@ -5,19 +5,21 @@ Icon_Align :: enum { Start, End }
 Button_Style :: struct {
     bg         : Color,
     round      : f32,
+    padding    : int,
     icon_align : Icon_Align,
     icon_color : Color,
 }
 
-button :: proc(parent: ^Box, label: string, w, h: f32, ctx: ^Context, style : Button_Style = {}) -> bool {
+button :: proc(parent: ^Box, label: string, w, h: f32, ctx: ^Context, size_mode: Size_Mode = .Relative, style : Button_Style = {}) -> bool {
     button_style_with_defaults := Style{
         align    = .Center,
         justify  = .Center,
         bg       = style.bg,
         hover_bg = { style.bg.r, style.bg.g, style.bg.b, style.bg.a / 2 },
         round    = style.round if style.round > 0 else 5,
+        padding  = style.padding,
     }
-    base := box(label, w, h, parent = parent, style = button_style_with_defaults)
+    base := box(label, w, h, parent = parent, size_mode = size_mode, style = button_style_with_defaults)
     txt := text(label)
     add_elements(base, txt)
     add_elements(parent, base)
@@ -25,7 +27,7 @@ button :: proc(parent: ^Box, label: string, w, h: f32, ctx: ^Context, style : Bu
     return _button_interaction(base, ctx)
 }
 
-icon_button :: proc(parent: ^Box, icon: string, w, h : f32, size: i32, ctx: ^Context, style : Button_Style = {}) -> bool {
+icon_button :: proc(parent: ^Box, icon_name: string, w, h : f32, size: i32 = 15, ctx: ^Context, style : Button_Style = {}) -> bool {
     button_style_with_defaults := Style{
         align    = .Center,
         justify  = .Center,
@@ -34,15 +36,15 @@ icon_button :: proc(parent: ^Box, icon: string, w, h : f32, size: i32, ctx: ^Con
         round    = style.round if style.round > 0 else 5,
     }
 
-    base := box("icon", w, h, parent = parent, style = button_style_with_defaults)
-    icon_text := text(icon, icon = true, size = f32(size))
+    base := box("icon", w, h, parent = parent, size_mode = .Mixed, style = button_style_with_defaults)
+    icon_text := icon(icon_name, size = f32(size))
     add_elements(base, icon_text)
     add_elements(parent, base)
 
     return _button_interaction(base, ctx)
 }
 
-icon_text_button :: proc(parent: ^Box, label: string, w, h: f32, icon: string, size: i32 = 15, ctx: ^Context, style : Button_Style = {}) -> bool {
+icon_text_button :: proc(parent: ^Box, label: string, w, h: f32, icon_name: string, size: i32 = 15, ctx: ^Context, size_mode: Size_Mode = .Relative, style : Button_Style = {}) -> bool {
     button_style_with_defaults := Style{
         align    = .Center,
         justify  = .Center,
@@ -51,9 +53,9 @@ icon_text_button :: proc(parent: ^Box, label: string, w, h: f32, icon: string, s
         round    = style.round if style.round > 0 else 5,
         gap      = 5,
     }
-    base := box(label, w, h, parent = parent, style = button_style_with_defaults)
+    base := box(label, w, h, parent = parent, size_mode = size_mode, style = button_style_with_defaults)
     icon_color := style.icon_color if style.icon_color != {} else _Text_Color
-    icon := text(icon, icon = true, size = f32(size), color = icon_color)
+    icon := icon(icon_name, size = f32(size), color = icon_color)
     txt := text(label)
 
     if style.icon_align == .End {
