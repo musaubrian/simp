@@ -265,14 +265,12 @@ render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Co
     }
 }
 
-print_heirarchy :: proc(root: ^Box) {
+get_heirarchy :: proc(root: ^Box, allocator := context.temp_allocator) -> string {
     sb := strings.builder_make()
-    context.allocator = context.temp_allocator
-    defer free_all(context.temp_allocator)
 
     root_element := Element(root)
     walk_tree(&root_element, &sb)
-    fmt.println(strings.to_string(sb))
+    return strings.to_string(sb)
 }
 
 walk_tree :: proc(element: ^Element, sb: ^strings.Builder, depth := 0) {
