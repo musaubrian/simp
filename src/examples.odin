@@ -13,7 +13,7 @@ example_default :: proc(w, h: i32, ctx: ^lx.Context) -> ^lx.Box {
 
 
     footer := lx.box("df-f", -1, 0.1, style = { padding = 10, align = .End })
-    footer_text := lx.text("* Use j/k to switch between different layouts", size = 22)
+    footer_text := lx.text("* Use 'n' to switch between different layouts", size = 22)
     lx.add_elements(footer, footer_text)
 
     title := lx.text("LX Examples", size = 30)
@@ -57,10 +57,10 @@ example_simple :: proc(w, h: i32, ctx: ^lx.Context, mouse_pos: lx.Vec2) -> ^lx.B
 
     lx.add_elements(root, top, bottom)
 
-    partial_tree := lx.get_heirarchy(root)
+    heirarchy := lx.get_heirarchy(example_default(w,h,ctx))
 
-    heirarchy_title := lx.text("Incomplete Heirarchy", size = 28)
-    tree := lx.text(partial_tree)
+    heirarchy_title := lx.text("Default Example layout", size = 28)
+    tree := lx.text(heirarchy)
     lx.add_elements(bottom, heirarchy_title, tree)
 
     lx.layout(root, { 0, 0, f32(w), f32(h) }, ctx)
