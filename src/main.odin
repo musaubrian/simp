@@ -41,7 +41,7 @@ main :: proc() {
     show_labels := false
 
 
-    img := rl.LoadTexture("resources/minimal-orange.png")
+    img := rl.LoadTexture("resources/example.png")
     defer rl.UnloadTexture(img)
 
     img_size := 200
