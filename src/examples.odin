@@ -140,8 +140,8 @@ ImgTexture :: struct {
 }
 example_image :: proc(w, h : i32, ctx: ^lx.Context, img_texture: ^ImgTexture) -> ^lx.Box {
     root := lx.box("ri", 1, 1, style = { align = .Center, justify = .Center } )
-    img_box := lx.box("img-box", -1, -1, style = { bg = { 100, 100, 100, 120 }, gap = 5 } )
-    #unroll for index in 0..<3 {
+    img_box := lx.box("img-box", -1, -1, style = { bg = { 100, 100, 100, 120 }, gap = 5, wrap = true } )
+    #unroll for index in 0..<5 {
         img := lx.image(fmt.tprintf("rimg-%d", index), img_texture.texture, img_texture.w, img_texture.h)
         lx.add_elements(img_box, img)
     }

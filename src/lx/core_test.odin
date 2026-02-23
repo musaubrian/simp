@@ -343,3 +343,33 @@ test_image :: proc(t: ^testing.T) {
     testing.expect_value(t, img.pos[0], f32(5))
     testing.expect_value(t, img.pos[1], f32(5))
 }
+
+@(test)
+test_wrap_row :: proc(t: ^testing.T) {
+    // 3 children each 0.4 wide in a 200px row → first two fit, third wraps
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
+    root := box("r", 1, 1, style = { wrap = true, gap = 10 })
+    a := box("a", 0.4, 0.3)
+    b := box("b", 0.4, 0.3)
+    c := box("c", 0.4, 0.3)
+    add_elements(root, a, b, c)
+    layout(root, { 0, 0, 200, 200 }, &ctx)
+
+    ca := root.elements[0].(^Box)
+    cb := root.elements[1].(^Box)
+    cc := root.elements[2].(^Box)
+
+    // available_w = 200 - 10 padding = 190
+    // each child width = 0.4 * 190 = 76
+    // a at x=5, b at x=5+76+10=91, used=91+76=167 fits
+    // c would be at 167+10=177, 177+76=253 > 195, so wraps
+    testing.expect_value(t, ca.bounds.x, f32(5))
+    testing.expect_value(t, ca.bounds.y, f32(5))
+    testing.expect_value(t, cb.bounds.x, f32(91))
+    testing.expect_value(t, cb.bounds.y, f32(5))
+    // c wraps: x resets to 5, y = 5 + line_height(57) + gap(10) = 72
+    testing.expect_value(t, cc.bounds.x, f32(5))
+    testing.expect_value(t, cc.bounds.y, f32(72))
+}

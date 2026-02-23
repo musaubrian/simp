@@ -50,11 +50,13 @@ Style :: struct {
     bg      : Color,
     justify : Alignment,
     align   : Alignment,
+    wrap    : bool,
 }
 
 Context :: struct {
     font         : any,
     measure_text : proc(t: ^Text, ctx: ^Context) -> Vec2,
+    state        : State,
 }
 
 Rect  :: struct { x, y, w, h: f32 }
@@ -62,8 +64,8 @@ Vec2  :: distinct [2]f32
 Color :: distinct [4]u8
 
 // Defaults
-_Text_Size  : f32 : 25.0
-_Text_Color :: Color{ 255, 255, 255, 255 }
+_Text_Size   : f32 : 25.0
+_Text_Color  :: Color{ 255, 255, 255, 255 }
 _Box_Padding :: 5
 
 make_id :: proc(label: string) -> u32 { return hash.fnv32a(transmute([]u8)label) }
@@ -79,6 +81,7 @@ box :: proc(label: string, w, h : f32, direction: Direction = .Row, hidden := fa
         bg      = style.bg,
         justify = style.justify,
         align   = style.align,
+        wrap    = style.wrap,
     }
 
     b^ = {
@@ -144,7 +147,7 @@ add_elements :: proc(parent: ^Box, elements: ..Element) {
             sz := n.w if parent.direction == .Row else n.h
             if sz >= 0 {
                 total += sz
-                if total > 1.0 {
+                if !parent.style.wrap && total > 1.0 {
                     fatal(
                         fmt.tprintf("ERROR: LX: (Box '%s'): children exceed 1.0, got %.2f, '%s' pushed it over by '%.2f'",
                             n.parent.debug_label, total, n.debug_label, (total - 1.0),
@@ -186,8 +189,11 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
     available_h := parent_rect.h - pad * 2
 
     is_row := b.direction == .Row
-    total_gap := f32(b.style.gap * (len(b.elements) - 1))
-    if is_row { available_w -= total_gap } else { available_h -= total_gap }
+    // Don't pre-subtract total gap for wrapping rows, gaps are handled per-line
+    if !(is_row && b.style.wrap) {
+        total_gap := f32(b.style.gap * (len(b.elements) - 1))
+        if is_row { available_w -= total_gap } else { available_h -= total_gap }
+    }
 
     avail_main  := available_w if is_row else available_h
     avail_cross := available_h if is_row else available_w
@@ -241,61 +247,99 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
         }
     }
 
-    // Justify: offset on main axis (no leftover when growers consumed it)
-    main_space := f32(0) if grow_count > 0 else max(avail_main - used_main, 0)
-    main_offset : f32 = 0
-    switch b.style.justify {
-    case .Start:  main_offset = 0
-    case .Center: main_offset = main_space / 2
-    case .End:    main_offset = main_space
-    }
+    if is_row && b.style.wrap {
+        gap := f32(b.style.gap)
+        cursor_x := content_x
+        cursor_y := content_y
+        line_height : f32 = 0
 
-    cursor_main  := (content_x if is_row else content_y) + main_offset
-    cursor_cross := content_y if is_row else content_x
+        for &element in b.elements {
+            child_w, child_h : f32
 
-    // Second pass: position children
-    for &element, index in b.elements {
-        child_main_size, child_cross_size : f32
-
-        switch el in element {
-        case ^Box:
-            child_main_size  = el.bounds.w if is_row else el.bounds.h
-            child_cross_size = el.bounds.h if is_row else el.bounds.w
-
-            co := cross_align_offset(b.style.align, avail_cross, child_cross_size)
-            if is_row {
-                el.bounds.x = cursor_main
-                el.bounds.y = cursor_cross + co
-            } else {
-                el.bounds.x = cursor_cross + co
-                el.bounds.y = cursor_main
+            switch el in element {
+            case ^Box:   child_w = el.bounds.w; child_h = el.bounds.h
+            case ^Text:  child_w = el.bounds[0]; child_h = el.bounds[1]
+            case ^Image: child_w = el.bounds[0]; child_h = el.bounds[1]
             }
-            layout(el, el.bounds, ctx)
-        case ^Text:
-            child_main_size  = el.bounds.x if is_row else el.bounds.y
-            child_cross_size = el.bounds.y if is_row else el.bounds.x
 
-            co := cross_align_offset(b.style.align, avail_cross, child_cross_size)
-            if is_row {
-                el.pos = { cursor_main, cursor_cross + co }
-            } else {
-                el.pos = { cursor_cross + co, cursor_main }
+            // Wrap to next line if this child overflows
+            if cursor_x + child_w > content_x + available_w && cursor_x > content_x {
+                cursor_x = content_x
+                cursor_y += line_height + gap
+                line_height = 0
             }
-        case ^Image:
-            child_main_size  = el.bounds.x if is_row else el.bounds.y
-            child_cross_size = el.bounds.y if is_row else el.bounds.x
 
-            co := cross_align_offset(b.style.align, avail_cross, child_cross_size)
-            if is_row {
-                el.pos = { cursor_main, cursor_cross + co }
-            } else {
-                el.pos = { cursor_cross + co, cursor_main }
+            switch el in element {
+            case ^Box:
+                el.bounds.x = cursor_x
+                el.bounds.y = cursor_y
+                layout(el, el.bounds, ctx)
+            case ^Text:
+                el.pos = { cursor_x, cursor_y }
+            case ^Image:
+                el.pos = { cursor_x, cursor_y }
             }
+
+            cursor_x += child_w + gap
+            line_height = max(line_height, child_h)
+        }
+    } else {
+        // Justify: offset on main axis (no leftover when growers consumed it)
+        main_space := f32(0) if grow_count > 0 else max(avail_main - used_main, 0)
+        main_offset : f32 = 0
+        switch b.style.justify {
+        case .Start:  main_offset = 0
+        case .Center: main_offset = main_space / 2
+        case .End:    main_offset = main_space
         }
 
-        gap : f32 = 0
-        if index != len(b.elements) - 1 { gap = f32(b.style.gap) }
-        cursor_main += child_main_size + gap
+        cursor_main  := (content_x if is_row else content_y) + main_offset
+        cursor_cross := content_y if is_row else content_x
+
+        // Second pass: position children
+        for &element, index in b.elements {
+            child_main_size, child_cross_size : f32
+
+            switch el in element {
+            case ^Box:
+                child_main_size  = el.bounds.w if is_row else el.bounds.h
+                child_cross_size = el.bounds.h if is_row else el.bounds.w
+
+                co := cross_align_offset(b.style.align, avail_cross, child_cross_size)
+                if is_row {
+                    el.bounds.x = cursor_main
+                    el.bounds.y = cursor_cross + co
+                } else {
+                    el.bounds.x = cursor_cross + co
+                    el.bounds.y = cursor_main
+                }
+                layout(el, el.bounds, ctx)
+            case ^Text:
+                child_main_size  = el.bounds.x if is_row else el.bounds.y
+                child_cross_size = el.bounds.y if is_row else el.bounds.x
+
+                co := cross_align_offset(b.style.align, avail_cross, child_cross_size)
+                if is_row {
+                    el.pos = { cursor_main, cursor_cross + co }
+                } else {
+                    el.pos = { cursor_cross + co, cursor_main }
+                }
+            case ^Image:
+                child_main_size  = el.bounds.x if is_row else el.bounds.y
+                child_cross_size = el.bounds.y if is_row else el.bounds.x
+
+                co := cross_align_offset(b.style.align, avail_cross, child_cross_size)
+                if is_row {
+                    el.pos = { cursor_main, cursor_cross + co }
+                } else {
+                    el.pos = { cursor_cross + co, cursor_main }
+                }
+            }
+
+            gap : f32 = 0
+            if index != len(b.elements) - 1 { gap = f32(b.style.gap) }
+            cursor_main += child_main_size + gap
+        }
     }
 }
 
@@ -304,6 +348,12 @@ render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Co
 
     root_element := Element(b)
     draw_fn(&root_element, ctx)
+
+    if point_in_rect(b.bounds, ctx.state.mouse_pos) {
+        ctx.state.hover_id = b.id
+        ctx.state._debug = b.debug_label
+    }
+
 
     for &element in b.elements {
         switch el in element {
