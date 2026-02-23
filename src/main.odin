@@ -19,8 +19,8 @@ main :: proc() {
     switch args[1] {
     case "tree":
         ctx := lx.Context{}
-        layout := hello_lx(SCREEN_WIDTH, SCREEN_HEIGHT, &ctx, &counter)
-        lx.print_tree(&layout)
+        layout := hello_lx(SCREEN_WIDTH, SCREEN_HEIGHT, &ctx)
+        lx.print_heirarchy(layout)
     case "render":
         render_layout()
     case "version":
@@ -57,10 +57,13 @@ render_layout :: proc() {
 
     ctx := lx.Context {
         font = &font,
-        measure_text_fn = measure_text,
+        measure_text = measure_text,
     }
-    ctx.ui_state.widgets = make(map[u32]lx.Widget_State)
-
+    // ctx.ui_state.widgets = make(map[u32]lx.Widget_State)
+        // mp := rl.GetMousePosition()
+        // ctx.ui_state.mouse_pos = { mp.x, mp.y }
+        // ctx.ui_state.mouse_down = rl.IsMouseButtonDown(.LEFT)
+        // ctx.ui_state.hot_id = 0
 
     context.allocator = context.temp_allocator
     for !rl.WindowShouldClose() {
@@ -70,58 +73,50 @@ render_layout :: proc() {
         rl.BeginDrawing()
         defer rl.EndDrawing()
 
-        mp := rl.GetMousePosition()
-        ctx.ui_state.mouse_pos = { mp.x, mp.y }
-        ctx.ui_state.mouse_down = rl.IsMouseButtonDown(.LEFT)
-        ctx.ui_state.hot_id = 0
 
-        layout := hello_lx(rl.GetRenderWidth(), rl.GetRenderHeight(), &ctx, &counter)
-
-        lx.render(&layout, &ctx, proc(n: ^lx.Node, ctx: ^lx.Context) {
-            switch &c in n {
-            case lx.Container:
-                bg := c.style.bg
-                if c.id == ctx.ui_state.hot_id { bg.a /= 2 }
-
+        layout := hello_lx(rl.GetRenderWidth(), rl.GetRenderHeight(), &ctx)
+        lx.render(layout, &ctx, proc(element: ^lx.Element, ctx: ^lx.Context) {
+            switch &elem in element {
+            case ^lx.Box:
+                bg := elem.style.bg
                 rl.DrawRectangleRounded(
-                    { c.rect.x, c.rect.y, c.rect.w, c.rect.h },
-                    c.style.round, 16, rl.Color(bg),
+                    { elem.bounds.x, elem.bounds.y, elem.bounds.w, elem.bounds.h },
+                    elem.style.round, 16, rl.Color(bg),
                 )
-            case lx.Text:
+            case ^lx.Text:
                 font, ok := ctx.font.(^rl.Font)
-                if !ok {
-                    lx.fatal("render: Expected font to be of rl.Font")
-                }
-
+                if !ok { lx.fatal("render: Expected font to be of ^rl.Font") }
                 rl.DrawTextEx(
                     font^,
-                    strings.clone_to_cstring(c.content),
-                    {c.pos.x, c.pos.y},
-                    c.size, 0, rl.Color(c.color),
+                    strings.clone_to_cstring(elem.content),
+                    { elem.pos.x, elem.pos.y },
+                    elem.size, 0, rl.Color(elem.color),
                 )
             }
+
         })
     }
 }
 
-hello_lx :: proc(width, height: i32, ctx: ^lx.Context, state: ^int) -> lx.Container {
+hello_lx :: proc(width, height: i32, ctx: ^lx.Context) -> ^lx.Box {
     roundness :: 10.0
-    root      := lx.container("root", 1, 1, style = { bg = { 23, 23, 23, 0 }, align = .Center, justify = .Center })
+    root      := lx.box("root", 1, 1, style = { bg = { 23, 23, 23, 0 }, align = .Center, justify = .Center })
 
-    box       := lx.container("bx", 0.5, 0.2, lx.Direction.Col, style = { bg = { 230, 41, 55, 255 }, padding = 5, round = roundness * 5, justify = .Center, align = .Center })
-    box_cont  := lx.container("bxc", 1, 1, lx.Direction.Col, style = { bg = { 80, 80, 80, 255 }, gap = 5, round = roundness * 4, justify = .Center, align = .Center })
+    box       := lx.box("bx", 0.5, 0.2, lx.Direction.Col, style = { bg = { 230, 41, 55, 255 }, padding = 5, round = roundness * 5, justify = .Center, align = .Center })
+    box_cont  := lx.box("bxc", -1, -1, lx.Direction.Col, style = { bg = { 80, 80, 80, 255 }, gap = 5, round = roundness * 4, justify = .Center, align = .Center })
     bxc_label := lx.text("SIMP - LX", color = { 200, 122, 255, 255 })
-    bxc_text  := lx.text(fmt.aprintf("HEIGHT: %d - WIDTH: %d", height, width))
+    bxc_text  := lx.text(fmt.tprintf("HEIGHT: %d - WIDTH: %d", height, width))
     bxc_vers  := lx.text(#config(VERSION, ""))
 
-    // if lx.button(&box_cont, fmt.aprintf("Clicked %d", state^), 0.5, 0.2, &ctx.ui_state, style = { bg = { 120, 230, 23, 255 }, round = roundness * 2,  align = .Center, justify = .Center }) {
+    // if lx.button(&box_cont, fmt.tprintf("Clicked %d", state^), 0.5, 0.2, &ctx.ui_state, style = { bg = { 120, 230, 23, 255 }, round = roundness * 2,  align = .Center, justify = .Center }) {
     //     state^ += 1
     // }
-    lx.add_elements(&box_cont, bxc_label, bxc_text, bxc_vers)
-    lx.add_elements(&box, box_cont)
-    lx.add_elements(&root, box)
 
-    lx.begin(&root, { 0, 0, f32(width), f32(height) }, ctx)
+    lx.add_elements(box_cont, bxc_label, bxc_text, bxc_vers)
+    lx.add_elements(box, box_cont)
+    lx.add_elements(root, box)
+
+    lx.layout(root, { 0, 0, f32(width), f32(height) }, ctx)
 
     return root
 }
