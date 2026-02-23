@@ -3,6 +3,7 @@ package lx
 
 import "core:fmt"
 import "core:os"
+import "core:strings"
 
 Direction :: enum  { Row, Col }
 Node      :: union { Container, Text }
@@ -157,40 +158,43 @@ render :: proc(container: ^Container, draw_fn: proc(node: ^Node)) {
 
 print_tree :: proc(container: ^Container) {
     depth : int = 0
+    sb := strings.builder_make()
+
     n := Node(container^)
-    print_node(&n, depth)
-    for &el in container.elements {
-        walk_tree(&el, depth + 1)
-    }
+    walk_tree(&n, depth, &sb)
+    fmt.print(strings.to_string(sb))
 }
 
-walk_tree :: proc(node: ^Node, depth: int) {
-    print_node(node, depth)
+walk_tree :: proc(node: ^Node, depth: int, sb: ^strings.Builder) {
+    strings.write_string(sb, write_node(node, depth))
 
     switch &elem in node {
     case Container:
         for &child in elem.elements {
-            walk_tree(&child, depth + 1)
+            walk_tree(&child, depth + 1, sb)
         }
     case Text: // text is always a leaf node
     }
 }
 
-print_node :: proc(node: ^Node, depth: int = 0) {
+write_node :: proc(node: ^Node, depth: int = 0) -> string {
+    n := ""
     switch c in node {
     case Container:
-        fmt.printfln(
+       n = fmt.aprintfln(
             "%*s Container(id=%s, direction=%v, width=%f, height=%f)",
             depth * 2, "",
             c.id, c.direction, c.width, c.height,
         )
     case Text:
-        fmt.printfln(
+        n = fmt.aprintfln(
             "%*s Text(id=%s, size=%f, color=%v, pos=%v, content=%s)",
             depth * 2, "",
             c.id, c.size, c.color, c.pos, c.content,
         )
     }
+
+    return n
 }
 
 fatal :: proc(message: string) {
