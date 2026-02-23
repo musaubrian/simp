@@ -1,4 +1,6 @@
-package lx
+package lx_old
+
+import "core:fmt"
 
 button :: proc(
     parent     : ^Container,
@@ -10,7 +12,8 @@ button :: proc(
     text_color : Color = DEF_TEXT_COLOR,
     style      := Style{},
 ) -> bool {
-    id := make_id(label)
+    str_label := fmt.tprintf("%s", label[0])
+    id := make_id(str_label)
     btn := Container{
         id        = id,
         width     = width,
