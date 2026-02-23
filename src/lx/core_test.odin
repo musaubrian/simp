@@ -345,6 +345,58 @@ test_image :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_fixed_size :: proc(t: ^testing.T) {
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
+    root := box("r", 1, 1)
+    child := box("c", 50, 30, size_mode = .Mixed)
+    add_elements(root, child)
+    layout(root, { 0, 0, 200, 200 }, &ctx)
+
+    c := root.elements[0].(^Box)
+    testing.expect_value(t, c.bounds.w, f32(50))
+    testing.expect_value(t, c.bounds.h, f32(30))
+}
+
+@(test)
+test_fixed_with_relative :: proc(t: ^testing.T) {
+    // [fixed 50px | relative fill] in 200px row
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
+    root := box("r", 1, 1)
+    fixed := box("f", 50, 30, size_mode = .Mixed)
+    grow  := box("g", -1, 1)
+    add_elements(root, fixed, grow)
+    layout(root, { 0, 0, 200, 100 }, &ctx)
+
+    cf := root.elements[0].(^Box)
+    cg := root.elements[1].(^Box)
+    testing.expect_value(t, cf.bounds.w, f32(50))
+    testing.expect_value(t, cf.bounds.h, f32(30))
+    // grow gets remaining: 190(avail) - 50(fixed) = 140
+    testing.expect_value(t, cg.bounds.w, f32(140))
+    testing.expect_value(t, cg.bounds.h, f32(90))
+}
+
+@(test)
+test_fixed_cross_fill :: proc(t: ^testing.T) {
+    // fixed width, -1 height should fill cross axis
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
+    root := box("r", 1, 1)
+    child := box("c", 50, -1, size_mode = .Mixed)
+    add_elements(root, child)
+    layout(root, { 0, 0, 200, 100 }, &ctx)
+
+    c := root.elements[0].(^Box)
+    testing.expect_value(t, c.bounds.w, f32(50))
+    testing.expect_value(t, c.bounds.h, f32(90))
+}
+
+@(test)
 test_wrap_row :: proc(t: ^testing.T) {
     // 3 children each 0.4 wide in a 200px row → first two fit, third wraps
     context.allocator = context.temp_allocator
