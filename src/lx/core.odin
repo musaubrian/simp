@@ -6,7 +6,6 @@ import "core:os"
 
 Direction :: enum { Row, Col }
 
-// Width and height is a float from 0.1,
 Container :: struct {
     id        : string,
     direction : Direction,

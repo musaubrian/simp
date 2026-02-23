@@ -4,6 +4,9 @@ import "core:testing"
 
 @(test)
 test_add_elementss :: proc(t: ^testing.T) {
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
     root := new_container("root", Direction.Col, 1, 1, { bg = { 10, 100, 10, 255 } })
     element := new_container("element", Direction.Col, 0.5, 0.5, { bg = { 100, 100, 100, 255 } })
     add_elements(&root, element)
@@ -12,4 +15,5 @@ test_add_elementss :: proc(t: ^testing.T) {
     assert(root_element.id == element.id)
     assert(root_element.width == element.width)
     assert(root_element.height == element.height)
+
 }
