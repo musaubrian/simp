@@ -295,7 +295,7 @@ write_element :: proc(element: ^Element, depth := 0) -> string {
         )
     case ^Text:
         string_el = fmt.aprintfln(
-            "%*s Text(size=%f, color=%v, pos=%v, content=%s)",
+            "%*s Text(size=%f, color=%v, pos=%v, content=\"%s\")",
             depth * 2, "",
             el.size, el.color, el.pos, el.content,
         )
