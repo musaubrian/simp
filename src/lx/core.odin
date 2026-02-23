@@ -54,7 +54,7 @@ Vec2  :: distinct [2]f32
 Color :: distinct [4]u8
 
 // Defaults
-_Text_Size  : f32 : 24.0
+_Text_Size  : f32 : 25.0
 _Text_Color :: Color{ 255, 255, 255, 255 }
 
 make_id :: proc(label: string) -> u32 { return hash.fnv32a(transmute([]u8)label) }
