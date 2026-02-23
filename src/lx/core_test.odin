@@ -60,10 +60,10 @@ test_layout_single_child :: proc(t: ^testing.T) {
     layout(root, { 0, 0, 100, 100 }, &ctx)
 
     c := root.elements[0].(^Box)
-    testing.expect_value(t, c.bounds.x, f32(0))
-    testing.expect_value(t, c.bounds.y, f32(0))
-    testing.expect_value(t, c.bounds.w, f32(50))
-    testing.expect_value(t, c.bounds.h, f32(100))
+    testing.expect_value(t, c.bounds.x, f32(5))
+    testing.expect_value(t, c.bounds.y, f32(5))
+    testing.expect_value(t, c.bounds.w, f32(45))
+    testing.expect_value(t, c.bounds.h, f32(90))
 }
 
 @(test)
@@ -79,10 +79,10 @@ test_layout_two_children_row :: proc(t: ^testing.T) {
 
     ca := root.elements[0].(^Box)
     cb := root.elements[1].(^Box)
-    expect_approx(ca.bounds.x, 1)
-    expect_approx(ca.bounds.w, 80)
-    expect_approx(cb.bounds.x, 80)
-    expect_approx(cb.bounds.w, 120)
+    expect_approx(ca.bounds.x, 5)
+    expect_approx(ca.bounds.w, 76)
+    expect_approx(cb.bounds.x, 81)
+    expect_approx(cb.bounds.w, 114)
 }
 
 @(test)
@@ -98,10 +98,10 @@ test_layout_two_children_col :: proc(t: ^testing.T) {
 
     ca := root.elements[0].(^Box)
     cb := root.elements[1].(^Box)
-    expect_approx(ca.bounds.y, 0)
-    expect_approx(ca.bounds.h, 60)
-    expect_approx(cb.bounds.y, 60)
-    expect_approx(cb.bounds.h, 140)
+    expect_approx(ca.bounds.y, 5)
+    expect_approx(ca.bounds.h, 57)
+    expect_approx(cb.bounds.y, 62)
+    expect_approx(cb.bounds.h, 133)
 }
 
 @(test)
@@ -117,9 +117,9 @@ test_layout_gap :: proc(t: ^testing.T) {
 
     ca := root.elements[0].(^Box)
     cb := root.elements[1].(^Box)
-    testing.expect_value(t, ca.bounds.w, f32(95))
+    testing.expect_value(t, ca.bounds.w, f32(90))
     testing.expect_value(t, cb.bounds.x, f32(105))
-    testing.expect_value(t, cb.bounds.w, f32(95))
+    testing.expect_value(t, cb.bounds.w, f32(90))
 }
 
 @(test)
@@ -150,8 +150,8 @@ test_justify_center :: proc(t: ^testing.T) {
     layout(root, { 0, 0, 100, 100 }, &ctx)
 
     c := root.elements[0].(^Box)
-    testing.expect_value(t, c.bounds.x, f32(25))
-    testing.expect_value(t, c.bounds.w, f32(50))
+    testing.expect_value(t, c.bounds.x, f32(27.5))
+    testing.expect_value(t, c.bounds.w, f32(45))
 }
 
 @(test)
@@ -179,7 +179,7 @@ test_align_center :: proc(t: ^testing.T) {
     layout(root, { 0, 0, 100, 100 }, &ctx)
 
     c := root.elements[0].(^Box)
-    testing.expect_value(t, c.bounds.y, f32(25))
+    testing.expect_value(t, c.bounds.y, f32(27.5))
 }
 
 @(test)
@@ -207,8 +207,8 @@ test_grow_single :: proc(t: ^testing.T) {
     layout(root, { 0, 0, 200, 100 }, &ctx)
 
     c := root.elements[0].(^Box)
-    testing.expect_value(t, c.bounds.w, f32(200))
-    testing.expect_value(t, c.bounds.h, f32(100))
+    testing.expect_value(t, c.bounds.w, f32(190))
+    testing.expect_value(t, c.bounds.h, f32(90))
 }
 
 @(test)
@@ -224,9 +224,9 @@ test_grow_with_fixed :: proc(t: ^testing.T) {
 
     cf := root.elements[0].(^Box)
     cg := root.elements[1].(^Box)
-    testing.expect_value(t, cf.bounds.w, f32(80))
-    testing.expect_value(t, cg.bounds.w, f32(120))
-    testing.expect_value(t, cg.bounds.x, f32(80))
+    testing.expect_value(t, cf.bounds.w, f32(76))
+    testing.expect_value(t, cg.bounds.w, f32(114))
+    testing.expect_value(t, cg.bounds.x, f32(81))
 }
 
 @(test)
@@ -242,8 +242,8 @@ test_grow_two :: proc(t: ^testing.T) {
 
     ca := root.elements[0].(^Box)
     cb := root.elements[1].(^Box)
-    testing.expect_value(t, ca.bounds.w, f32(100))
-    testing.expect_value(t, cb.bounds.w, f32(100))
+    testing.expect_value(t, ca.bounds.w, f32(95))
+    testing.expect_value(t, cb.bounds.w, f32(95))
     testing.expect_value(t, cb.bounds.x, f32(100))
 }
 
@@ -258,8 +258,8 @@ test_grow_cross_axis :: proc(t: ^testing.T) {
     layout(root, { 0, 0, 200, 100 }, &ctx)
 
     c := root.elements[0].(^Box)
-    testing.expect_value(t, c.bounds.w, f32(100))
-    testing.expect_value(t, c.bounds.h, f32(100))
+    testing.expect_value(t, c.bounds.w, f32(95))
+    testing.expect_value(t, c.bounds.h, f32(90))
 }
 
 @(test)
@@ -278,12 +278,12 @@ test_grow_middle :: proc(t: ^testing.T) {
     ca   := root.elements[0].(^Box)
     cmid := root.elements[1].(^Box)
     cb   := root.elements[2].(^Box)
-    expect_approx(ca.bounds.x, 0)
-    expect_approx(ca.bounds.w, 60)
-    expect_approx(cmid.bounds.x, 60)
-    expect_approx(cmid.bounds.w, 80)
-    expect_approx(cb.bounds.x, 140)
-    expect_approx(cb.bounds.w, 60)
+    expect_approx(ca.bounds.x, 5)
+    expect_approx(ca.bounds.w, 57)
+    expect_approx(cmid.bounds.x, 62)
+    expect_approx(cmid.bounds.w, 76)
+    expect_approx(cb.bounds.x, 138)
+    expect_approx(cb.bounds.w, 57)
 }
 
 @(test)
@@ -302,11 +302,11 @@ test_grow_two_with_fixed :: proc(t: ^testing.T) {
     ca   := root.elements[0].(^Box)
     cmid := root.elements[1].(^Box)
     cb   := root.elements[2].(^Box)
-    testing.expect_value(t, ca.bounds.w, f32(80))    // (200 - 40) / 2
-    testing.expect_value(t, cmid.bounds.x, f32(80))
-    testing.expect_value(t, cmid.bounds.w, f32(40))  // 0.2 * 200
-    testing.expect_value(t, cb.bounds.x, f32(120))
-    testing.expect_value(t, cb.bounds.w, f32(80))
+    testing.expect_value(t, ca.bounds.w,   f32(76))
+    testing.expect_value(t, cmid.bounds.x, f32(81))
+    testing.expect_value(t, cmid.bounds.w, f32(38))
+    testing.expect_value(t, cb.bounds.x,   f32(119))
+    testing.expect_value(t, cb.bounds.w,   f32(76))
 }
 
 @(test)
@@ -324,7 +324,22 @@ test_grow_with_gap :: proc(t: ^testing.T) {
     ca := root.elements[0].(^Box)
     cb := root.elements[1].(^Box)
     // available_w = 200 - 10(gap) = 190
-    testing.expect_value(t, ca.bounds.w, f32(38))     // 0.2 * 190
-    testing.expect_value(t, cb.bounds.x, f32(48))     // 38 + 10
-    testing.expect_value(t, cb.bounds.w, f32(152))    // 190 - 38
+    testing.expect_value(t, ca.bounds.w, f32(36))     // 0.2 * 190
+    testing.expect_value(t, cb.bounds.x, f32(51))     // 38 + 10
+    testing.expect_value(t, cb.bounds.w, f32(144))    // 190 - 38
+}
+
+@(test)
+test_image :: proc(t: ^testing.T) {
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+    img_texture : any = ---
+    img := image("img", img_texture, 10.0, 10.0)
+
+    root := box("r", 1, 1, style = { gap = 10 })
+    add_elements(root, img)
+    layout(root, { 0, 0, 100, 100 }, &ctx)
+
+    testing.expect_value(t, img.pos[0], f32(5))
+    testing.expect_value(t, img.pos[1], f32(5))
 }
