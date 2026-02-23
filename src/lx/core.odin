@@ -56,11 +56,23 @@ Color :: distinct [4]u8
 // Defaults
 _Text_Size  : f32 : 25.0
 _Text_Color :: Color{ 255, 255, 255, 255 }
+_Box_Padding :: 5
 
 make_id :: proc(label: string) -> u32 { return hash.fnv32a(transmute([]u8)label) }
 
 box :: proc(label: string, w, h : f32, direction: Direction = .Row, parent : ^Box = nil, style := Style{}, allocator := context.allocator) -> ^Box {
     b := new(Box)
+
+    style_with_defaults := Style{
+        // Need to find a way of opting out of default padding
+        padding = style.padding if style.padding > 0 else _Box_Padding,
+        gap     = style.gap,
+        round   = style.round,
+        bg      = style.bg,
+        justify = style.justify,
+        align   = style.align,
+    }
+
     b^ = {
         id          = make_id(label),
         debug_label = label,
@@ -71,7 +83,7 @@ box :: proc(label: string, w, h : f32, direction: Direction = .Row, parent : ^Bo
         bounds      = {},
         elements    = nil,
         state       = {},
-        style       = style,
+        style       = style_with_defaults,
     }
 
     check_box_sizing(b)
