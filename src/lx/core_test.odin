@@ -4,6 +4,8 @@ import "core:testing"
 import "core:math"
 import "core:fmt"
 
+ctx := Context{}
+
 @private
 expect_approx :: proc(t: ^testing.T, got: f32, expected: f32, loc := #caller_location) {
     assert(math.abs(got - expected) <= 0.01, fmt.aprintf("expected %f, got %f", expected, got))
@@ -36,7 +38,7 @@ test_layout_single_child :: proc(t: ^testing.T) {
     root := container("r", 1, 1)
     child := container("c", 0.5, 1)
     add_elements(&root, child)
-    layout(&root, { 0, 0, 100, 100 })
+    layout(&root, { 0, 0, 100, 100 }, &ctx)
 
     c := root.elements[0].(Container)
     testing.expect_value(t, c.rect.x, f32(0))
@@ -54,7 +56,7 @@ test_layout_two_children_row :: proc(t: ^testing.T) {
     a := container("a", 0.4, 1)
     b := container("b", 0.6, 1)
     add_elements(&root, a, b)
-    layout(&root, { 0, 0, 200, 100 })
+    layout(&root, { 0, 0, 200, 100 }, &ctx)
 
     ca := root.elements[0].(Container)
     cb := root.elements[1].(Container)
@@ -73,7 +75,7 @@ test_layout_two_children_col :: proc(t: ^testing.T) {
     a := container("a", 1, 0.3)
     b := container("b", 1, 0.7)
     add_elements(&root, a, b)
-    layout(&root, { 0, 0, 100, 200 })
+    layout(&root, { 0, 0, 100, 200 }, &ctx)
 
     ca := root.elements[0].(Container)
     cb := root.elements[1].(Container)
@@ -92,7 +94,7 @@ test_layout_gap :: proc(t: ^testing.T) {
     a := container("a", 0.5, 1)
     b := container("b", 0.5, 1)
     add_elements(&root, a, b)
-    layout(&root, { 0, 0, 200, 100 })
+    layout(&root, { 0, 0, 200, 100 }, &ctx)
 
     ca := root.elements[0].(Container)
     cb := root.elements[1].(Container)
@@ -110,7 +112,7 @@ test_layout_padding :: proc(t: ^testing.T) {
     root := container("r", 1, 1, style = { padding = 20 })
     child := container("c", 1, 1)
     add_elements(&root, child)
-    layout(&root, { 0, 0, 200, 100 })
+    layout(&root, { 0, 0, 200, 100 }, &ctx)
 
     c := root.elements[0].(Container)
     testing.expect_value(t, c.rect.x, f32(20))
@@ -127,7 +129,7 @@ test_justify_center :: proc(t: ^testing.T) {
     root := container("r", 1, 1, style = { justify = .Center })
     child := container("c", 0.5, 1)
     add_elements(&root, child)
-    layout(&root, { 0, 0, 100, 100 })
+    layout(&root, { 0, 0, 100, 100 }, &ctx)
 
     c := root.elements[0].(Container)
     testing.expect_value(t, c.rect.x, f32(25)) // (100 - 50) / 2
@@ -142,7 +144,7 @@ test_justify_end :: proc(t: ^testing.T) {
     root := container("r", 1, 1, style = { justify = .End })
     child := container("c", 0.5, 1)
     add_elements(&root, child)
-    layout(&root, { 0, 0, 100, 100 })
+    layout(&root, { 0, 0, 100, 100 }, &ctx)
 
     c := root.elements[0].(Container)
     testing.expect_value(t, c.rect.x, f32(50)) // 100 - 50
@@ -156,7 +158,7 @@ test_align_center :: proc(t: ^testing.T) {
     root := container("r", 1, 1, style = { align = .Center })
     child := container("c", 0.5, 0.5)
     add_elements(&root, child)
-    layout(&root, { 0, 0, 100, 100 })
+    layout(&root, { 0, 0, 100, 100 }, &ctx)
 
     c := root.elements[0].(Container)
     testing.expect_value(t, c.rect.y, f32(25)) // (100 - 50) / 2
@@ -170,7 +172,7 @@ test_align_end :: proc(t: ^testing.T) {
     root := container("r", 1, 1, style = { align = .End })
     child := container("c", 0.5, 0.5)
     add_elements(&root, child)
-    layout(&root, { 0, 0, 100, 100 })
+    layout(&root, { 0, 0, 100, 100 }, &ctx)
 
     c := root.elements[0].(Container)
     testing.expect_value(t, c.rect.y, f32(50)) // 100 - 50

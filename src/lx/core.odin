@@ -28,7 +28,10 @@ Text :: struct {
     bounds   : Vec2,
 }
 
-MeasureTextFn :: proc(t: ^Text) -> Vec2
+Context :: struct {
+    font : any,
+    measure_text_fn : proc(t: ^Text, font: ^Context) -> Vec2,
+}
 
 Style :: struct {
     round     : f32,
@@ -104,7 +107,7 @@ add_elements :: proc(parent: ^Container, elements: ..Node) {
     }
 }
 
-layout :: proc(container: ^Container, parent_rect: Rect, measure: MeasureTextFn = nil) {
+layout :: proc(container: ^Container, parent_rect: Rect, ctx: ^Context) {
     container.rect = parent_rect
 
     // calculate the appropriate rounded ratio
@@ -138,8 +141,8 @@ layout :: proc(container: ^Container, parent_rect: Rect, measure: MeasureTextFn 
             case .Col: used_main += cont.rect.h
             }
         case Text:
-            if measure != nil {
-                cont.bounds = measure(&cont)
+            if ctx != nil {
+                cont.bounds = ctx.measure_text_fn(&cont, ctx)
             } else {
                 cont.bounds = { cont.size, cont.size }
             }
@@ -200,7 +203,7 @@ layout :: proc(container: ^Container, parent_rect: Rect, measure: MeasureTextFn 
                 cont.rect.y = cursor.y
             }
 
-            layout(&cont, cont.rect, measure)
+            layout(&cont, cont.rect, ctx)
 
             gap : f32 = 0.0
             if index != (len(container.elements) - 1) {
@@ -245,15 +248,15 @@ layout :: proc(container: ^Container, parent_rect: Rect, measure: MeasureTextFn 
     }
 }
 
-render :: proc(container: ^Container, draw_fn: proc(node: ^Node)) {
+render :: proc(container: ^Container, ctx: ^Context, draw_fn: proc(node: ^Node, ctx: ^Context)) {
     n := Node(container^)
-    draw_fn(&n)
+    draw_fn(&n, ctx)
     for &child in container.elements {
         switch &c in child {
         case Container:
-            render(&c, draw_fn)
+            render(&c, ctx, draw_fn)
         case Text:
-            draw_fn(&child)
+            draw_fn(&child, ctx)
         }
     }
 }
