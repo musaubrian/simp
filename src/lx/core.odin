@@ -28,11 +28,13 @@ Text :: struct {
     size        : f32,
     color       : Color,
     pos, bounds : Vec2,
+    hidden      : bool,
 }
 
 InteractionState :: struct {
     active  : bool,
     clicked : bool,
+    hidden  : bool,
 }
 
 Style :: struct {
@@ -60,7 +62,7 @@ _Box_Padding :: 5
 
 make_id :: proc(label: string) -> u32 { return hash.fnv32a(transmute([]u8)label) }
 
-box :: proc(label: string, w, h : f32, direction: Direction = .Row, parent : ^Box = nil, style := Style{}, allocator := context.allocator) -> ^Box {
+box :: proc(label: string, w, h : f32, direction: Direction = .Row, hidden := false, parent : ^Box = nil, style := Style{}, allocator := context.allocator) -> ^Box {
     b := new(Box)
 
     style_with_defaults := Style{
@@ -82,7 +84,7 @@ box :: proc(label: string, w, h : f32, direction: Direction = .Row, parent : ^Bo
         h           = h,
         bounds      = {},
         elements    = nil,
-        state       = {},
+        state       = { hidden = hidden },
         style       = style_with_defaults,
     }
 
@@ -91,9 +93,9 @@ box :: proc(label: string, w, h : f32, direction: Direction = .Row, parent : ^Bo
     return b
 }
 
-text :: proc(content: string, size := _Text_Size, color := _Text_Color, allocator := context.allocator) -> ^Text {
+text :: proc(content: string, hidden := false, size := _Text_Size, color := _Text_Color, allocator := context.allocator) -> ^Text {
     t := new(Text)
-    t^ = { content = content, size = size, color = color }
+    t^ = { content = content, size = size, color = color, hidden = hidden }
 
     return t
 }
@@ -264,6 +266,8 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
 }
 
 render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Context)) {
+    if b.state.hidden { return }
+
     root_element := Element(b)
     draw_fn(&root_element, ctx)
 
@@ -272,6 +276,7 @@ render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Co
         case ^Box:
             render(el, ctx, draw_fn)
         case ^Text:
+            if el.hidden { return }
             draw_fn(&element, ctx)
         }
     }
