@@ -377,7 +377,7 @@ _handle_input :: proc(b: ^Box, ctx: ^Context) {
         max_scroll := max(b.scroll.content_size - (b.bounds.h if b.direction == .Col else b.bounds.w), 0)
         b.scroll.offset = clamp(b.scroll.offset, 0, max_scroll)
 
-        // Update scroll offset
+        // Update external scroll offset
         if ctx.scroll_offset != nil { ctx.scroll_offset^ = b.scroll.offset }
     }
 

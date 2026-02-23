@@ -3,7 +3,12 @@ package main
 import "lx"
 import "core:fmt"
 
-Examples :: []string{" - This layout", " - Simple layout", " - Viewer layout", " - Btop layout", " - Image"}
+Examples :: []string{
+    " - This layout",     " - Simple layout",
+    " - Viewer layout",   " - Btop layout",
+    " - Image",           " - Button",
+    " - Scrollable list",
+}
 
 example_default :: proc(w, h: i32, ctx: ^lx.Context) -> ^lx.Box {
     root := lx.box("df-r", 1, 1, style = { bg = { 40, 40, 40, 255 }, padding = 50 })
@@ -152,3 +157,30 @@ example_image :: proc(w, h : i32, ctx: ^lx.Context, img_texture: ^ImgTexture) ->
     return root
 }
 
+example_scrollable :: proc(w ,h : i32, ctx: ^lx.Context, offset: ^f32) -> ^lx.Box {
+    root := lx.box("rs", 1, 1, style = { align = .Center, justify = .Center, gap = 10, padding = 10 } )
+
+    vert_scroll := lx.scroll_area("vert-list", 0.5, 0.7, style = {  bg = { 100, 100, 100, 120 }, gap = 7 })
+    vert_scroll.scroll.offset = offset^
+
+    horizontal_scroll := lx.scroll_area("vert-list", -1, 0.3, direction = .Row, style = {  bg = { 100, 100, 100, 120 }, padding = 10, gap = 10 })
+    horizontal_scroll.scroll.offset = offset^
+
+    for idx in 0..<50 {
+        label := fmt.tprintf("vert-c-%d", idx + 1)
+        container := lx.box(label, -1, 0.5, style = {  bg = { 150, 150, 150, 200 }, align = .Center, round = 10 })
+        lx.add_elements(container, lx.text(label, size = 30))
+        lx.add_elements(vert_scroll, container)
+    }
+
+    for idx in 0..<50 {
+        label := fmt.tprintf("horizontal-c-%d", idx + 1)
+        container := lx.box(label, 0.5, -1, style = {  bg = { 150, 150, 150, 200 }, align = .Center, justify = .Center, round = 10 })
+        lx.add_elements(container, lx.text(label, size = 30))
+        lx.add_elements(horizontal_scroll, container)
+    }
+
+    lx.add_elements(root, vert_scroll, horizontal_scroll)
+    lx.layout(root, { 0, 0, f32(w), f32(h) }, ctx)
+    return root
+}

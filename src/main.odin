@@ -7,7 +7,7 @@ import rl "vendor:raylib"
 SCREEN_WIDTH  :: 1080
 SCREEN_HEIGHT :: 720
 
-MOUSE_SENSITIVITY :: 15
+MOUSE_SENSITIVITY :: 20
 
 FONT_DATA :: #load("../resources/fonts/JetBrainsMono-Regular.ttf")
 
