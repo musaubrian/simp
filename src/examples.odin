@@ -162,10 +162,12 @@ example_image :: proc(w, h : i32, ctx: ^lx.Context, img_texture: ^ImgTexture) ->
 
 
 example_button :: proc(w ,h : i32, ctx: ^lx.Context, count: ^int) -> ^lx.Box {
-    root := lx.box("rb", 1, 1, .Col, style = { align = .Center, justify = .Center, gap = 10, padding = 10 } )
-    text := lx.text(fmt.tprintf("Count: %d", count^), size = 40)
-    buttons := lx.box("btns", -1, 0.5, style = { gap = 10, justify = .Center })
+    root    := lx.box("rb", 1, 1, .Col, style = { align = .Center, justify = .Center, gap = 10, padding = 10 } )
+    text    := lx.text(fmt.tprintf("Count: %d", count^), size = 40)
+    buttons := lx.box("btns", -1, 0.05, style = { gap = 10, justify = .Center })
+
     lx.add_elements(root, text, buttons)
+
 
     if lx.icon_text_button(buttons, "Decrement", 200, 40, lx.ICON_MINUS, ctx = ctx, size_mode = .Mixed, style = { bg = {  200, 100, 100, 255  } }) {
         count^ -= 1
@@ -177,6 +179,9 @@ example_button :: proc(w ,h : i32, ctx: ^lx.Context, count: ^int) -> ^lx.Box {
     if lx.icon_button(buttons, lx.ICON_REPEAT, 40, 40, size = 20, ctx = ctx, style = { bg = {  150, 100, 150, 255  } }) {
         count^ = 0
     }
+
+    max_count := 100
+    lx.progress(root, "counter", 500, 30, (f32(count^) / f32(max_count)))
 
     lx.layout(root, { 0, 0, f32(w), f32(h) }, ctx)
     return root
