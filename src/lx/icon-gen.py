@@ -1,6 +1,6 @@
 import json
 
-with open("./src/lx/font/lucide-font/info.json") as f:
+with open("./font/lucide-font/info.json") as f:
     info = json.load(f)
 
 names = ["ICON_" + name.upper().replace("-", "_") for name in info]
@@ -22,5 +22,5 @@ for name, (_, data) in zip(names, info.items()):
 cp_list = ", ".join(f"0x{cp:04X}" for cp in sorted(codepoints))
 lines.append(f"\nICON_CODEPOINTS :: []rune{{{cp_list}}}\n")
 
-with open("./src/lx/icons.odin", "w") as f:
+with open("./icons.odin", "w") as f:
     f.writelines(lines)
