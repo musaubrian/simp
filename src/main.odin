@@ -41,13 +41,13 @@ main :: proc() {
 
 
     ctx := lx.Context {
-        font = { text = &text_font, icon = &icon_font },
-        measure_text = measure_text,
-        begin_scissor = proc(r: lx.Rect) { rl.BeginScissorMode(i32(r.x), i32(r.y), i32(r.w), i32(r.h)) },
-        end_scissor   = proc() { rl.EndScissorMode() },
+        font           = { text = &text_font, icon = &icon_font },
+        measure_text   = measure_text,
+        begin_scissor  = proc(r: lx.Rect) { rl.BeginScissorMode(i32(r.x), i32(r.y), i32(r.w), i32(r.h)) },
+        end_scissor    = proc() { rl.EndScissorMode() },
+        scroll_offsets = make(map[u32]f32),
     }
 
-    scroll_offset : f32 = 0
     active_example := 0
     show_labels := false
 
@@ -88,20 +88,19 @@ main :: proc() {
         ctx.state.mouse_pos = mp
         ctx.state.mouse_down = rl.IsMouseButtonDown(rl.MouseButton.LEFT)
         ctx.state.scroll_wheel = rl.GetMouseWheelMoveV().y * MOUSE_SENSITIVITY
-        ctx.scroll_offset = &scroll_offset
 
         render_w := rl.GetRenderWidth()
         render_h := rl.GetRenderHeight()
 
-        layout := example_default(render_w, render_h, &ctx)
-
+        layout: ^lx.Box
         switch active_example {
         case 1: layout = example_simple(render_w, render_h, &ctx, mp)
-        case 2: layout = example_viewer(render_w, render_h, &ctx, show_labels, &scroll_offset)
+        case 2: layout = example_viewer(render_w, render_h, &ctx, show_labels)
         case 3: layout = example_btop(render_w, render_h, &ctx, show_labels)
         case 4: layout = example_image(render_w, render_h, &ctx, &img_texture)
         case 5: layout = example_button(render_w, render_h, &ctx, &count)
-        case 6: layout = example_scrollable(render_w, render_h, &ctx, &scroll_offset)
+        case 6: layout = example_scrollable(render_w, render_h, &ctx)
+        case 7: layout = example_floating(render_w, render_h, &ctx)
         case:   layout = example_default(render_w, render_h, &ctx)
         }
 
