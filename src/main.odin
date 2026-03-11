@@ -46,11 +46,13 @@ main :: proc() {
         begin_scissor  = proc(r: lx.Rect) { rl.BeginScissorMode(i32(r.x), i32(r.y), i32(r.w), i32(r.h)) },
         end_scissor    = proc() { rl.EndScissorMode() },
         scroll_offsets = make(map[u32]f32),
+        floaters       = make(map[u32]^lx.Box),
     }
 
+    count := 0
     active_example := 0
-    show_labels := false
-
+    show_labels    := false
+    show_dialog    := false
 
     img := rl.LoadTexture("resources/example.png")
     defer rl.UnloadTexture(img)
@@ -62,7 +64,6 @@ main :: proc() {
         h = f32(img_size),
     }
 
-    count := 0
 
     context.allocator = context.temp_allocator
     for !rl.WindowShouldClose() {
@@ -100,7 +101,7 @@ main :: proc() {
         case 4: layout = example_image(render_w, render_h, &ctx, &img_texture)
         case 5: layout = example_button(render_w, render_h, &ctx, &count)
         case 6: layout = example_scrollable(render_w, render_h, &ctx)
-        case 7: layout = example_floating(render_w, render_h, &ctx)
+        case 7: layout = example_floating(render_w, render_h, &ctx, &show_dialog)
         case:   layout = example_default(render_w, render_h, &ctx)
         }
 
@@ -135,7 +136,8 @@ main :: proc() {
                 dest_rect := rl.Rectangle{ elem.pos[0], elem.pos[1], elem.bounds.x, elem.bounds.y }
                 rl.DrawTexturePro(texture^, src_rect, dest_rect, { 0, 0 }, 0.0, rl.WHITE)
             }
-
         })
+
     }
+
 }

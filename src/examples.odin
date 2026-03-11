@@ -7,7 +7,7 @@ Examples :: []string{
     " - This layout",     " - Simple layout",
     " - Viewer layout",   " - Btop layout",
     " - Image",           " - Button",
-    " - Scrollable list",
+    " - Scrollable list", " - Floating",
 }
 
 example_default :: proc(w, h: i32, ctx: ^lx.Context) -> ^lx.Box {
@@ -73,12 +73,11 @@ example_simple :: proc(w, h: i32, ctx: ^lx.Context, mouse_pos: lx.Vec2) -> ^lx.B
     return root
 }
 
-example_viewer :: proc(w, h : i32, ctx: ^lx.Context, show_labels := false, offset : ^f32) -> ^lx.Box {
+example_viewer :: proc(w, h : i32, ctx: ^lx.Context, show_labels := false) -> ^lx.Box {
     root := lx.box("vr", 1, 1, lx.Direction.Col, style = { padding = 7, gap = 7 })
     view := lx.box("vv", -1, 0.9, style = { bg = { 150, 120, 140, 255 }, round = 10, align = .Center, justify = .Center })
     lx.add_elements(view, lx.text("Nothing to view here :|", size = 35))
-    thumbnails := lx.scroll_area("vt", -1, -1, direction = .Row, style = { bg = { 70, 70, 100, 200 }, padding = 5, gap = 7, round = 10 })
-    thumbnails.scroll.offset = offset^
+    thumbnails := lx.scroll_area("vt", -1, -1, direction = .Row, ctx = ctx, style = { bg = { 70, 70, 100, 200 }, padding = 5, gap = 7, round = 10 })
 
     for i in 0..< 50 {
         label := fmt.tprintf("vt-%d", i + 1)
@@ -188,14 +187,11 @@ example_button :: proc(w ,h : i32, ctx: ^lx.Context, count: ^int) -> ^lx.Box {
 
 }
 
-example_scrollable :: proc(w ,h : i32, ctx: ^lx.Context, offset: ^f32) -> ^lx.Box {
+example_scrollable :: proc(w ,h : i32, ctx: ^lx.Context) -> ^lx.Box {
     root := lx.box("rs", 1, 1, style = { align = .Center, justify = .Center, gap = 10, padding = 10 } )
 
-    vert_scroll := lx.scroll_area("vert-list", 0.5, 0.7, style = {  bg = { 100, 100, 100, 120 }, gap = 7 })
-    vert_scroll.scroll.offset = offset^
-
-    horizontal_scroll := lx.scroll_area("vert-list", -1, 0.3, direction = .Row, style = {  bg = { 100, 100, 100, 120 }, padding = 10, gap = 10 })
-    horizontal_scroll.scroll.offset = offset^
+    vert_scroll := lx.scroll_area("vert-list", 0.5, 0.7, ctx = ctx, style = {  bg = { 100, 100, 100, 120 }, gap = 7 })
+    horizontal_scroll := lx.scroll_area("horiz-list", -1, 0.3, direction = .Row, ctx = ctx, style = {  bg = { 100, 100, 100, 120 }, padding = 10, gap = 10 })
 
     for idx in 0..<50 {
         label := fmt.tprintf("vert-c-%d", idx + 1)
@@ -213,5 +209,35 @@ example_scrollable :: proc(w ,h : i32, ctx: ^lx.Context, offset: ^f32) -> ^lx.Bo
 
     lx.add_elements(root, vert_scroll, horizontal_scroll)
     lx.layout(root, { 0, 0, f32(w), f32(h) }, ctx)
+    return root
+}
+
+example_floating :: proc(w, h : i32, ctx: ^lx.Context, show_dialog : ^bool) -> ^lx.Box {
+    root := lx.box("frs", 1, 1, direction = .Col, style = { align = .Center, justify = .Center, padding = 5, gap = 5 } )
+
+    if lx.icon_text_button(root, "Open Dialog", 200, 50, lx.ICON_PLUS, size = 18, size_mode = .Mixed, ctx = ctx, style = { bg = { 90, 80, 90, 255 }, round = 10 }) {
+        show_dialog^ = true
+    }
+
+    d := lx.dialog("d1", 0.7, 0.6, visible = show_dialog, anchor = root, ctx = ctx,
+                   style = { round = 10, padding = 2 })
+
+    contents := lx.scroll_area("d1-contents", -1, -1, ctx = ctx, style = { padding = 10 })
+    lx.add_elements(contents, lx.text(long_text))
+
+
+    footer := lx.box("d1-footer", -1, 0.2, style = { gap = 10, padding = 10, align = .Center, justify = .Center })
+    btn_width : f32 = 0.3 if w > 900 else -1
+    if lx.button(footer, "Cancel", btn_width, 0.5, ctx = ctx, style = { bg = { 130, 130, 130, 250 }, round = 10 }) {
+        show_dialog^ = !show_dialog^
+    }
+    if lx.button(footer, "Accept", btn_width, 0.5, ctx = ctx, style = { bg = { 100, 200, 100, 255 }, round = 10 }) {
+        show_dialog^ = !show_dialog^
+    }
+
+    lx.add_elements(d, contents, footer)
+
+    lx.layout(root, { 0, 0, f32(w), f32(h) }, ctx)
+
     return root
 }
