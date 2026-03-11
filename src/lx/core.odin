@@ -48,14 +48,17 @@ Image :: struct {
 }
 
 Style :: struct {
-    padding  : int,
-    gap      : int,
-    round    : f32,
-    bg       : Color,
-    hover_bg : Color,
-    justify  : Alignment,
-    align    : Alignment,
-    wrap     : bool,
+    padding        : int,
+    gap            : int,
+    round          : f32,
+    bg             : Color,
+    hover_bg       : Color,
+    justify        : Alignment,
+    align          : Alignment,
+    wrap           : bool,
+    track_color    : Color,
+    thumb_color    : Color,
+    progress_color : Color,
 }
 
 Font :: struct {
@@ -64,12 +67,12 @@ Font :: struct {
 }
 
 Context :: struct {
-    font          : Font,
-    scroll_offset : ^f32,
-    measure_text  : proc(t: ^Text, ctx: ^Context) -> Vec2,
-    begin_scissor : proc(rect: Rect),
-    end_scissor   : proc(),
-    state         : State,
+    font           : Font,
+    measure_text   : proc(t: ^Text, ctx: ^Context) -> Vec2,
+    begin_scissor  : proc(rect: Rect),
+    end_scissor    : proc(),
+    state          : State,
+    scroll_offsets : map[u32]f32,
 }
 
 Rect  :: struct { x, y, w, h: f32 }
@@ -85,7 +88,13 @@ _Scrollthumb_Round : f32 : 10.0
 _Track_Color       :: Color{ 30,  30,  30,  255 }
 _Thumb_Color       :: Color{ 140, 140, 140, 255 }
 
-make_id :: proc(label: string) -> u32 { return hash.fnv32a(transmute([]u8)label) }
+make_id :: proc(label: string, parent: ^Box = nil) -> u32 {
+    seed : u32 = 2166136261
+    if parent != nil {
+        seed = parent.id ~ u32(len(parent.elements))
+    }
+    return hash.fnv32a(transmute([]u8)label, seed)
+}
 
 box :: proc(label: string, w, h : f32, direction: Direction = .Row, size_mode: Size_Mode = .Relative,
             hidden := false, parent : ^Box = nil, style := Style{}, allocator := context.allocator) -> ^Box {
@@ -104,7 +113,7 @@ box :: proc(label: string, w, h : f32, direction: Direction = .Row, size_mode: S
     }
 
     b^ = {
-        id          = make_id(label),
+        id          = make_id(label, parent),
         debug_label = label,
         parent      = parent,
         direction   = direction,
@@ -424,7 +433,7 @@ _handle_input :: proc(b: ^Box, ctx: ^Context) {
         if ctx.state.scroll_wheel != 0 { b.scroll.offset -= ctx.state.scroll_wheel }
 
         b.scroll.offset = clamp(b.scroll.offset, 0, max_scroll)
-        if ctx.scroll_offset != nil { ctx.scroll_offset^ = b.scroll.offset }
+        ctx.scroll_offsets[b.id] = b.scroll.offset
     }
 
     for &element in b.elements {
@@ -469,6 +478,9 @@ render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Co
             thumb_ratio  := visible / content
             track_length := visible
 
+            tc := b.style.track_color if b.style.track_color != {} else _Track_Color
+            thc := b.style.thumb_color if b.style.thumb_color != {} else _Thumb_Color
+
             track: Box
             thumb: Box
 
@@ -480,8 +492,8 @@ render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Co
                 thumb_w := max(thumb_ratio * track_length, 20)
                 thumb_x := track_start + (b.scroll.offset / max_scroll) * (track_length - thumb_w)
 
-                track   = { bounds = { track_start, sy, track_length, _Scrollbar_Size }, style = { bg = _Track_Color } }
-                thumb   = { bounds = { thumb_x, sy, thumb_w, _Scrollbar_Size }, style = { bg = _Thumb_Color, round = _Scrollthumb_Round } }
+                track   = { bounds = { track_start, sy, track_length, _Scrollbar_Size }, style = { bg = tc } }
+                thumb   = { bounds = { thumb_x, sy, thumb_w, _Scrollbar_Size }, style = { bg = thc, round = _Scrollthumb_Round } }
             } else {
                 sx := b.bounds.x + b.bounds.w - _Scrollbar_Size
                 sy := b.bounds.y
@@ -490,8 +502,8 @@ render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Co
                 thumb_h := max(thumb_ratio * track_length, 20)
                 thumb_y := track_start + (b.scroll.offset / max_scroll) * (track_length - thumb_h)
 
-                track    = { bounds = { sx, track_start, _Scrollbar_Size, track_length }, style = { bg = _Track_Color } }
-                thumb    = { bounds = { sx, thumb_y,     _Scrollbar_Size, thumb_h },      style = { bg = _Thumb_Color, round =_Scrollthumb_Round } }
+                track    = { bounds = { sx, track_start, _Scrollbar_Size, track_length }, style = { bg = tc } }
+                thumb    = { bounds = { sx, thumb_y,     _Scrollbar_Size, thumb_h },      style = { bg = thc, round =_Scrollthumb_Round } }
             }
 
             track_el := Element(&track)
@@ -528,21 +540,18 @@ write_element :: proc(element: ^Element, depth := 0) -> string {
     switch el in element {
     case ^Box:
         string_el = fmt.aprintfln(
-            "%*s Box(label=%s, direction=%v, width=%f, height=%f, size_mode=%v)",
-            depth * 2, "",
-            el.debug_label, el.direction, el.w, el.h, el.size_mode,
+            "%*sBox(id=%d, label=%s, direction=%v, width=%f, height=%f, size_mode=%v)",
+            depth * 2, "", el.id, el.debug_label, el.direction, el.w, el.h, el.size_mode,
         )
     case ^Text:
         string_el = fmt.aprintfln(
-            "%*s Text(size=%f, color=%v, pos=%v, hidden=%v, content=\"%s\")",
-            depth * 2, "",
-            el.size, el.color, el.pos, el.hidden, el.content,
+            "%*sText(size=%f, color=%v, pos=%v, hidden=%v, content=\"%s\")",
+            depth * 2, "", el.size, el.color, el.pos, el.hidden, el.content,
         )
     case ^Image:
         string_el = fmt.aprintfln(
-            "%*s Image(label=%s pos=%v, bounds=%v)",
-            depth * 2, "",
-            el.debug_label, el.pos, el.bounds,
+            "%*sImage(label=%s pos=%v, bounds=%v)",
+            depth * 2, "", el.debug_label, el.pos, el.bounds,
         )
 
     }
