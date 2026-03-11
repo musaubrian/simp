@@ -73,6 +73,7 @@ Context :: struct {
     end_scissor    : proc(),
     state          : State,
     scroll_offsets : map[u32]f32,
+    floaters       : map[u32]^Box,
 }
 
 Rect  :: struct { x, y, w, h: f32 }
@@ -87,6 +88,7 @@ _Scrollbar_Size    : f32 : 5.0
 _Scrollthumb_Round : f32 : 10.0
 _Track_Color       :: Color{ 30,  30,  30,  255 }
 _Thumb_Color       :: Color{ 140, 140, 140, 255 }
+_Default_Bg        :: Color{ 70,  70,  80,  255 }
 
 make_id :: proc(label: string, parent: ^Box = nil) -> u32 {
     seed : u32 = 2166136261
@@ -409,6 +411,12 @@ layout :: proc(b: ^Box, parent_rect: Rect, ctx: ^Context) {
             cursor_main += child_main_size + gap
         }
     }
+
+    if b.parent == nil {
+        for _, floater in ctx.floaters {
+            layout(floater, floater.parent.bounds, ctx)
+        }
+    }
 }
 
 handle_input :: proc(b: ^Box, ctx: ^Context) {
@@ -416,6 +424,11 @@ handle_input :: proc(b: ^Box, ctx: ^Context) {
 
     ctx.state.hover_id = 0
     _handle_input(b, ctx)
+    if b.parent == nil {
+        for _, floater in ctx.floaters {
+            _handle_input(floater, ctx)
+        }
+    }
 }
 
 @(private)
@@ -510,6 +523,12 @@ render :: proc(b: ^Box, ctx: ^Context, draw_fn: proc(element: ^Element, ctx: ^Co
             thumb_el := Element(&thumb)
             draw_fn(&track_el, ctx)
             draw_fn(&thumb_el, ctx)
+        }
+    }
+
+    if b.parent == nil {
+        for _, floater in ctx.floaters {
+            render(floater, ctx, draw_fn)
         }
     }
 }
